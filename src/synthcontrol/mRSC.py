@@ -61,7 +61,7 @@ class mRSC:
         
         self.mat_form_method = mat_form_method
         
-        self.target_data = self.target.concat(self.metrics, self.pred_year)
+        self.target_data = self.target.concat(self.metrics, self.pred_year, self.pred_length)
         self.window = int(self.target_data.shape[1] / self.num_k)
         self.interv_index = self.window - self.pred_length
         
@@ -76,7 +76,7 @@ class mRSC:
         denoise_mat_method = (string) 'all' or 'pre'
         regression_method = (string) 'pinv' or 'lr' or 'lasso'
         """
-        self._assignData(metrics, pred_year, pred_length=1, mat_form_method = "fixed")
+        self._assignData(metrics, pred_year, pred_length, mat_form_method = "fixed")
         
         # denoise & train test split
         if (denoise_method == "SVD"):

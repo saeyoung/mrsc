@@ -42,6 +42,17 @@ def get_preint_data(combinedDF, intervIndex, totalIndex, nbrMetrics, reindex = T
         indexToChoose = indexToChoose + list(range(k*totalIndex,k*totalIndex + intervIndex))
     return combinedDF.loc[:,indexToChoose]
 
+def getIndivFromDict(keys, data):
+    """
+    keys: (list) list of keys - the key(index) for each individual. Different from the dictionary keys.
+    data: (dict) dictionary of {metric : df}
+    """
+    metrics = data.keys()
+    newDict = {}
+    for metric in metrics: 
+        newDict.update({metric: data[metric].iloc[data[metric].index.isin(keys),:]})
+    return newDict
+
 def combined_df(df_list):
     keys = df_list[0].index
     combined_df = pd.DataFrame()

@@ -72,7 +72,7 @@ class SVDmodel:
             raise ValueError("Invalid denoise matrix method. Should be 'all' or 'pre'.")
             
         # get self.target_pre
-        self.target_pre = get_preint_data(self.target_data, self.interv_index, self.total_index, self.num_k)
+        self.target_pre = self.get_preint_data(self.target_data, self.interv_index, self.total_index, self.num_k)
     
     def fit(self):
         self._prepare()
@@ -92,7 +92,6 @@ class SVDmodel:
             
         else:
             raise ValueError("Invalid regression method. Should be 'lr' or 'pinv' or 'lasso'.")
-
 ########################################################
 
 
