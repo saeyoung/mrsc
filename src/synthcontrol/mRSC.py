@@ -68,19 +68,28 @@ class mRSC:
         self.donor_data = self.donor.concat(self.metrics, self.pred_year, self.window, self.mat_form_method)
         self.donor_data = self.donor_data.iloc[self.donor_data.index != self.target.key] # remove target from the donor
         
-    def fit(self, metrics, pred_year, pred_length=1, singvals =999,  mat_form_method = "fixed", denoise_method = "SVD", denoise_mat_method = "all",regression_method = 'pinv'):
+    def fit(self, metrics, pred_year, pred_length=1, singvals =999, setup = ["fixed", "SVD", "all", "pinv", False]):
+        
+        mat_form_method = setup[0] # "fixed"
+        denoise_method = setup[1] # "SVD"
+        denoise_mat_method = setup[2] # "all"
+        regression_method = setup[3] #'pinv'
+        skipNan = setup[4]
+
         """
         singvals = (int) the number of singular values to keep; 0 if no HSVT
         mat_form_method = (string) 'fixed' or 'sliding'
         denoise_method = (string) 'svd' or 'als'
         denoise_mat_method = (string) 'all' or 'pre'
         regression_method = (string) 'pinv' or 'lr' or 'lasso'
+        skipNan = (boolean) False if we skip the nan in the data, 
+                            True if we remove the target's nan and shift everything left.
         """
-        self._assignData(metrics, pred_year, pred_length, mat_form_method = "fixed")
+        self._assignData(metrics, pred_year, pred_length, mat_form_method)
         
         # denoise & train test split
         if (denoise_method == "SVD"):
-            self.model = SVDmodel(singvals, self.target_data, self.donor_data, self.num_k, self.interv_index, self.window, denoise_mat_method, regression_method, self.p)
+            self.model = SVDmodel(singvals, self.target_data, self.donor_data, self.num_k, self.interv_index, self.window, setup, self.p)
             self.model.fit()
 
         elif (denoise_method == "ALS"):
@@ -108,12 +117,24 @@ class mRSC:
             indexToChoose = indexToChoose + list(range(k*totalIndex + intervIndex, (k+1)*totalIndex))
         return combinedDF.loc[:,indexToChoose]
         
-    def predict(self, donor_post):
+    def predict(self):
         """
         donor_post = (df) donor data after the intervention point
         """
-        df_pred = np.dot(donor_post.T, self.model.beta)
+        donor_post = self.get_postint_data(combinedDF = self.donor_data, intervIndex = self.interv_index, totalIndex = self.window, nbrMetrics = self.num_k, reindex = True) 
+        df_pred = np.dot(donor_post.T, self.model.beta).T.flatten()
+
+        df_return = pd.DataFrame(index = self.metrics, columns = range(self.pred_year, self.pred_year + self.pred_length, 1))
+        for k in range(self.num_k):
+            df_return.iloc[k,:] = df_pred[k*self.pred_length: (k+1)*self.pred_length]
         
-        return df_pred
-        
+        return df_return
+
+    def getTrue(self):
+        target_post = self.get_postint_data(combinedDF = self.target_data, intervIndex = self.interv_index, totalIndex = self.window, nbrMetrics = self.num_k, reindex = True)
+        df_return = pd.DataFrame(index = self.metrics, columns = range(self.pred_year, self.pred_year + self.pred_length, 1))
+        for k in range(self.num_k):
+            df_return.iloc[k,:] = target_post.iloc[:,k*self.pred_length: (k+1)*self.pred_length].values
+        return df_return
+
         

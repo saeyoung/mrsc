@@ -21,6 +21,11 @@ from mrsc.src.synthcontrol.mRSC import mRSC
 from mrsc.src.importData import *
 import mrsc.src.utils as utils
 
+def getActivePlayers(stats, year):
+    # list of name of the players who were active in this and last year
+    thisYear = stats[stats.Year == year].copy()
+    lastYear = stats[stats.Year == (year-1)].copy()
+    return list(set(thisYear.Player.unique()) & set(lastYear.Player.unique()))
 
 def topPlayers(stats, year, metric, n):
     stats = stats[stats.Year == year]
@@ -56,8 +61,6 @@ def removeDuplicated(players, stats):
     stats_not_duplicated["year_count"] = stats_not_duplicated.Year - stats_not_duplicated.year_start
 
     return stats_not_duplicated
-
-
 
 # test for a multiple time series imputation and forecasting
 def test():
@@ -97,8 +100,35 @@ def test():
     # this matrix will be used to mask the table
     df_year = pd.pivot_table(stats, values="Year", index="Player", columns = "year_count")
 
+    activePlayers = getActivePlayers(stats, 2017)
+    activePlayers.sort()
+    offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
+    expSetup = ["sliding", "SVD", "pre", "pinv", False]
 
+    singvals_list = [1,2,4,8,16,32]
 
+    for singvals in singvals_list:
+        pred_all = pd.DataFrame()
+        true_all = pd.DataFrame()
+        for playerName in activePlayers:
+            target = Target(playerName, allPivotedTableDict, df_year)
+            donor = Donor(allPivotedTableDict, df_year)
+
+            mrsc = mRSC(donor, target, probObservation=1)
+            mrsc.fit(offMetrics, 2016, pred_length = 1, singvals = singvals, setup = expSetup)
+            
+            pred = mrsc.predict()
+            true = mrsc.getTrue()
+            pred.columns = [playerName]
+            true.columns = [playerName]
+            
+            pred_all = pd.concat([pred_all, pred], axis=1)
+            true_all = pd.concat([true_all, true], axis=1)
+
+        mask = (true_all !=0 )
+        mape = np.abs(pred_all - true_all) / true_all[mask]
+        print(singvals)
+        print(mape.mean(axis=1))
 
 def main():
     print("*******************************************************")
