@@ -113,6 +113,35 @@ def getPivotedTableDict(metricsDict):
 
 ##############################################
 
+def removeDuplicated(players, stats):
+    """
+    players: "../data/nba-players-stats/player_data.csv"
+    stats: "../data/nba-players-stats/Seasons_Stats.csv"
+    """
+    # players with the same name
+    names = players.name.unique()
+    duplicated = np.array([])
+
+    for name in names:
+        numrows = len(players[players.name == name])
+        if numrows != 1:
+            duplicated = np.append(duplicated, name)
+
+    duplicated = np.sort(duplicated)
+
+    start_year = players.copy()
+    start_year = start_year.rename(columns={"name":"Player"})
+
+    # for non-duplicated players
+    stats_not_duplicated = stats[~stats.Player.isin(duplicated)]
+    stats_not_duplicated = pd.merge(stats_not_duplicated, start_year, on="Player", how="left")
+
+    # only take the values that make sense
+    stats_not_duplicated = stats_not_duplicated[(stats_not_duplicated.Year >= stats_not_duplicated.year_start) & (stats_not_duplicated.Year <= stats_not_duplicated.year_end )]
+    stats_not_duplicated["year_count"] = stats_not_duplicated.Year - stats_not_duplicated.year_start
+
+    return stats_not_duplicated
+
 def dict_to_list(my_dict, get_keys = False):
     """
     my_dict: (dict) your dictionary

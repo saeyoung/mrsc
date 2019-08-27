@@ -114,8 +114,8 @@ def test():
 
     metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%","TRB_G","STL_G","BLK_G"]
     weights = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
-    expSetup = ["sliding", "SVD", "pre", "pinv", False]
-    thresholds_list = [0.99,0.995,0.997]
+    expSetup = ["fixed", "SVD", "all", "pinv", False]
+    thresholds_list = [0.95,0.97,0.99]
 
     activePlayers.remove("Kevin Garnett")
     activePlayers.remove("Kobe Bryant")
@@ -124,7 +124,7 @@ def test():
     for threshold in thresholds_list:
         pred_all = pd.DataFrame()
         true_all = pd.DataFrame()
-        for playerName in activePlayers:
+        for playerName in activePlayers[:3]:
             target = Target(playerName, allPivotedTableDict, df_year)
             donor = Donor(allPivotedTableDict, df_year)
 
@@ -144,6 +144,7 @@ def test():
         mape = np.abs(pred_all - true_all) / true_all[mask]
         print(threshold)
         print(mape.mean(axis=1))
+        print("mean of all metrics: ", mape.mean().mean())
 
 def main():
     print("*******************************************************")

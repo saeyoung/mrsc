@@ -60,17 +60,17 @@ def get_postint_data(combinedDF, intervIndex, totalIndex, nbrMetrics, reindex = 
         indexToChoose = indexToChoose + list(range(k*totalIndex + intervIndex, (k+1)*totalIndex))
     return combinedDF.loc[:,indexToChoose]
 
-def approximate_rank(X, t=99):
+def approximate_rank(X, t = 0.99):
     """
     Input:
         X: matrix of interest
-        t: an energy threshold. Default (99%)
+        t: an energy threshold. Default (0.99 = 99%)
         
     Output:
         r: approximate rank of Z
     """
     u, s, v = np.linalg.svd(X, full_matrices=False)
-    total_energy = (100*(s**2).cumsum()/(s**2).sum())
+    total_energy = (s**2).cumsum()/(s**2).sum()
     r = list((total_energy>t)).index(True)+1
     return r
 

@@ -36,35 +36,6 @@ def topPlayers(stats, year, metric, n):
     stats_sorted = stats[stats.Year == year].sort_values(metric, ascending = False).reset_index(drop=True)
     return stats_sorted[["Player","player_id"]][:n]
 
-def removeDuplicated(players, stats):
-    """
-    players: "../data/nba-players-stats/player_data.csv"
-    stats: "../data/nba-players-stats/Seasons_Stats.csv"
-    """
-    # players with the same name
-    names = players.name.unique()
-    duplicated = np.array([])
-
-    for name in names:
-        numrows = len(players[players.name == name])
-        if numrows != 1:
-            duplicated = np.append(duplicated, name)
-
-    duplicated = np.sort(duplicated)
-
-    start_year = players.copy()
-    start_year = start_year.rename(columns={"name":"Player"})
-
-    # for non-duplicated players
-    stats_not_duplicated = stats[~stats.Player.isin(duplicated)]
-    stats_not_duplicated = pd.merge(stats_not_duplicated, start_year, on="Player", how="left")
-
-    # only take the values that make sense
-    stats_not_duplicated = stats_not_duplicated[(stats_not_duplicated.Year >= stats_not_duplicated.year_start) & (stats_not_duplicated.Year <= stats_not_duplicated.year_end )]
-    stats_not_duplicated["year_count"] = stats_not_duplicated.Year - stats_not_duplicated.year_start
-
-    return stats_not_duplicated
-
 # test for a multiple time series imputation and forecasting
 def test():
     """
@@ -108,7 +79,7 @@ def test():
     """
     experiment setup
     """
-    activePlayers = getActivePlayers(stats, 2016, 4)
+    activePlayers = getActivePlayers(stats, 2016, 5)
     activePlayers.sort()
     # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
     # defMetrics = ["TRB_G","STL_G","BLK_G"]
