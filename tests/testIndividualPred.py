@@ -21,6 +21,9 @@ from mrsc.src.synthcontrol.mRSC import mRSC
 from mrsc.src.importData import *
 import mrsc.src.utils as utils
 
+def importData():
+
+
 def getActivePlayers(stats, year, buffer):
     # list of name of the players who were active in this and last year
     thisYear = stats[stats.Year == year].copy()
@@ -70,6 +73,7 @@ def test():
     """
     import data
     """
+    print("importing data")
     players = pd.read_csv("../data/nba-players-stats/player_data.csv")
     players = players[players.year_start >= 1980] # only choose players who started after 1980
     players["player_id"] = range(0,len(players.name)) # assign id
@@ -85,9 +89,9 @@ def test():
     stats.Year = stats.Year.astype(int)
     stats.year_count = stats.year_count.astype(int)
 
+    print("preparing data")
     # transform stats to a dictionary composed of df's for each stat
     # the stats are re-calculated to get one stat for each year
-
     metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK"]
     metricsPerGameDict = getMetricsPerGameDict(stats, metricsPerGameColNames)
 
@@ -116,6 +120,7 @@ def test():
 
     singvals_list = [1,2,4,8,16,32]
 
+    print("start experiment")
     for singvals in singvals_list:
         pred_all = pd.DataFrame()
         true_all = pd.DataFrame()
