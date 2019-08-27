@@ -8,6 +8,8 @@ import pandas as pd
 import random
 import copy
 
+import mrsc.src.utils as utils
+
 class SVDmodel:
     def __init__(self, weights, singvals, target_data, donor_data, interv_index, total_index, setup, probObservation):
         """
@@ -58,24 +60,6 @@ class SVDmodel:
         s[rank:].fill(0)
         vals = (np.dot(u*s, v))
         return pd.DataFrame(vals, index = df.index, columns = df.columns)
-    
-    def get_preint_data(self, combinedDF, intervIndex, totalIndex, nbrMetrics, reindex = True):
-        """
-        Input:
-            combinedDF: (dataframe) concatenated df of size (N, nbrMetrics*totalIndex)
-            intervIndex: pre-int period
-            totalIndex: total period
-            nbrMetrics: number of metrics
-
-        Output:
-            pre intervention of all metrics, concatenated
-        """
-        if reindex:
-            combinedDF.columns = range(combinedDF.shape[1])
-        indexToChoose = []
-        for k in range(nbrMetrics):
-            indexToChoose = indexToChoose + list(range(k*totalIndex,k*totalIndex + intervIndex))
-        return combinedDF.loc[:,indexToChoose]
 
     def _prepare(self):
         # handle the nan's in target
@@ -89,7 +73,7 @@ class SVDmodel:
             if (self.skipNan == False):
                 self.donor_data = self.donor_data.loc[:,cols]
             else:
-                self.donor_data = self.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k, reindex = True)
+                self.donor_data = utils.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k, reindex = True)
         # print("nan", numOfNans)
         # print("tar", self.target_data.columns)
         # print("tar", self.target_data.shape)
@@ -111,15 +95,14 @@ class SVDmodel:
         # get self.donor_pre
         if (self.denoise_mat_method == "all"):
             df_hsvt = self.hsvt(self.donor_data, self.singvals)
-            self.donor_pre = self.get_preint_data(df_hsvt, self.interv_index, self.total_index, self.num_k)
+            self.donor_pre = utils.get_preint_data(df_hsvt, self.interv_index, self.total_index, self.num_k)
         elif(self.denoise_mat_method == "pre"):
-            df_pre = self.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k)
+            df_pre = utils.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k)
             self.donor_pre = self.hsvt(df_pre, self.singvals)
         else:
             raise ValueError("Invalid denoise matrix method. Should be 'all' or 'pre'.")
             
-        # get self.target_pre
-        self.target_pre = self.get_preint_data(self.target_data, self.interv_index, self.total_index, self.num_k)
+        self.target_pre = utils.get_preint_data(self.target_data, self.interv_index, self.total_index, self.num_k)
 
     def fit(self):
         self._prepare()

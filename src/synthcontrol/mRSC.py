@@ -10,7 +10,7 @@ from mrsc.src.model.SVDmodel import SVDmodel
 from mrsc.src.model.Target import Target
 from mrsc.src.model.Donor import Donor
 
-# from tslib.saeyoung.utils import *
+import mrsc.src.utils as utils
 
 class mRSC:
     def __init__(self, donor, target, probObservation=1): 
@@ -52,7 +52,7 @@ class mRSC:
         self.total_index = None
         self.interv_index = None
         self.model = None
-        # delf.model.beta has the weights learned
+        # self.model.beta has the weights learned
         
     def _assignData(self, metrics, weights, pred_year, pred_length=1, mat_form_method = "fixed"):
         self.metrics = metrics
@@ -68,7 +68,10 @@ class mRSC:
         self.interv_index = self.total_index - self.pred_length
         
         self.donor_data = self.donor.concat(self.metrics, self.pred_year, self.total_index, self.mat_form_method)
-        self.donor_data = self.donor_data.iloc[self.donor_data.index != self.target.key] # remove target from the donor
+        self.donor_data = self.donor_data.iloc[self.donor_data.index != self.target.key] # remove target from the donor (maybe it's not necessary)
+
+        if (self.donor_data.shape[0] < 2):
+            raise Exception("Donor pool size too small. Donor pool size: "+ self.target.key +str(self.donor_data.shape))
         
     def fit(self, metrics, weights, pred_year, pred_length=1, singvals =999, setup = ["fixed", "SVD", "all", "pinv", False]):
         
@@ -92,7 +95,7 @@ class mRSC:
         """
         self._assignData(metrics, weights, pred_year, pred_length, mat_form_method)
         
-        # denoise & train test split
+        # denoise & learn weights
         if (denoise_method == "SVD"):
             self.model = SVDmodel(weights, singvals, self.target_data, self.donor_data, self.interv_index, self.total_index, setup, self.p)
             self.model.fit()
@@ -102,31 +105,55 @@ class mRSC:
 #             self.model = ALSModel(self.kSingularValues, self.N, self.M, probObservation=self.p, otherSeriesKeysArray=self.otherSeriesKeysArray, includePastDataOnly=False)
         else:
             raise ValueError("Invalid denoise method. Should be 'SVD' or 'ALS'.")
-    
-    def get_postint_data(self, combinedDF, intervIndex, totalIndex, nbrMetrics, reindex = True):
-        
-        """
-        Input:
-            combinedDF: (dataframe) concatenated df of size (N, nbrMetrics*totalIndex)
-            intervIndex: pre-int period
-            totalIndex: total period
-            nbrMetrics: number of metrics
 
-        Output:
-            pre intervention of all metrics, concatenated
+    def fit_threshold(self, metrics, weights, pred_year, pred_length=1, threshold =0.99, setup = ["fixed", "SVD", "all", "pinv", False]):
+        
+        if (len(weights) != len(metrics)):
+            raise Exception("The length of weights should match with the length of metrics (=num_k).")
+
+        mat_form_method = setup[0] # "fixed"
+        denoise_method = setup[1] # "SVD"
+        denoise_mat_method = setup[2] # "all"
+        regression_method = setup[3] #'pinv'
+        skipNan = setup[4]
+
         """
-        if reindex:
-            combinedDF.columns = range(combinedDF.shape[1])
-        indexToChoose = []
-        for k in range(nbrMetrics):
-            indexToChoose = indexToChoose + list(range(k*totalIndex + intervIndex, (k+1)*totalIndex))
-        return combinedDF.loc[:,indexToChoose]
+        singvals = (int) the number of singular values to keep; 0 if no HSVT
+        mat_form_method = (string) 'fixed' or 'sliding'
+        denoise_method = (string) 'svd' or 'als'
+        denoise_mat_method = (string) 'all' or 'pre'
+        regression_method = (string) 'pinv' or 'lr' or 'lasso'
+        skipNan = (boolean) False if we skip the nan in the data, 
+                            True if we remove the target's nan and shift everything left.
+        """
+        self._assignData(metrics, weights, pred_year, pred_length, mat_form_method)
+
+        # compute approximate rank
+        if (denoise_mat_method == "all"):
+            singvals = utils.approximate_rank(self.donor_data, threshold)
+        elif (denoise_mat_method == "pre"):
+            donor_pre = utils.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k, reindex = True)
+            # print(self.donor_data.shape)
+            # print(donor_pre.shape)
+            singvals = utils.approximate_rank(donor_pre, threshold)
+        
+        # denoise & learn weights
+        if (denoise_method == "SVD"):
+            self.model = SVDmodel(weights, singvals, self.target_data, self.donor_data, self.interv_index, self.total_index, setup, self.p)
+            self.model.fit()
+
+        elif (denoise_method == "ALS"):
+            print("not ready yet")
+#             self.model = ALSModel(self.kSingularValues, self.N, self.M, probObservation=self.p, otherSeriesKeysArray=self.otherSeriesKeysArray, includePastDataOnly=False)
+        else:
+            raise ValueError("Invalid denoise method. Should be 'SVD' or 'ALS'.")
         
     def predict(self):
         """
         donor_post = (df) donor data after the intervention point
+        df_return = (df) rows: metrics, cols: calendar year. Contains predicted values.
         """
-        donor_post = self.get_postint_data(combinedDF = self.donor_data, intervIndex = self.interv_index, totalIndex = self.total_index, nbrMetrics = self.num_k, reindex = True) 
+        donor_post = utils.get_postint_data(combinedDF = self.donor_data, intervIndex = self.interv_index, totalIndex = self.total_index, nbrMetrics = self.num_k, reindex = True) 
         df_pred = np.dot(donor_post.T, self.model.beta).T.flatten()
 
         df_return = pd.DataFrame(index = self.metrics, columns = range(self.pred_year, self.pred_year + self.pred_length, 1))
@@ -136,10 +163,12 @@ class mRSC:
         return df_return
 
     def getTrue(self):
-        target_post = self.get_postint_data(combinedDF = self.target_data, intervIndex = self.interv_index, totalIndex = self.total_index, nbrMetrics = self.num_k, reindex = True)
+        """
+        donor_post = (df) donor data after the intervention point
+        df_return = (df) rows: metrics, cols: calendar year. Contains true values.
+        """
+        target_post = utils.get_postint_data(combinedDF = self.target_data, intervIndex = self.interv_index, totalIndex = self.total_index, nbrMetrics = self.num_k, reindex = True)
         df_return = pd.DataFrame(index = self.metrics, columns = range(self.pred_year, self.pred_year + self.pred_length, 1))
         for k in range(self.num_k):
             df_return.iloc[k,:] = target_post.iloc[:,k*self.pred_length: (k+1)*self.pred_length].values
-        return df_return
-
-        
+        return df_return        

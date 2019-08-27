@@ -104,7 +104,6 @@ def test():
     # this matrix will be used to mask the table
     df_year = pd.pivot_table(stats, values="Year", index="Player", columns = "year_count")
 
-
     """
     experiment setup
     """
@@ -112,15 +111,17 @@ def test():
     activePlayers.sort()
     # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
     # defMetrics = ["TRB_G","STL_G","BLK_G"]
-    offMetrics = ["TRB_G","STL_G","BLK_G"]
-    weights = [1.,1.,1.,1.,1.]
-    expSetup = ["sliding", "SVD", "pre", "pinv", False]
 
-    singvals_list = [1,2,4,8,16,32]
+    metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%","TRB_G","STL_G","BLK_G"]
+    weights = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
+    expSetup = ["sliding", "SVD", "pre", "pinv", False]
+    thresholds_list = [0.99,0.995,0.997]
+
+    activePlayers.remove("Kevin Garnett")
+    activePlayers.remove("Kobe Bryant")
 
     print("start experiment")
-    print(offMetrics)
-    for singvals in singvals_list:
+    for threshold in thresholds_list:
         pred_all = pd.DataFrame()
         true_all = pd.DataFrame()
         for playerName in activePlayers:
@@ -128,8 +129,8 @@ def test():
             donor = Donor(allPivotedTableDict, df_year)
 
             mrsc = mRSC(donor, target, probObservation=1)
-            mrsc.fit(offMetrics, weights, 2016, pred_length = 1, singvals = singvals, setup = expSetup)
-            
+            mrsc.fit_threshold(metrics_to_use, weights, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+          
             pred = mrsc.predict()
             true = mrsc.getTrue()
             pred.columns = [playerName]
@@ -138,9 +139,10 @@ def test():
             pred_all = pd.concat([pred_all, pred], axis=1)
             true_all = pd.concat([true_all, true], axis=1)
 
+###################
         mask = (true_all !=0 )
         mape = np.abs(pred_all - true_all) / true_all[mask]
-        print(singvals)
+        print(threshold)
         print(mape.mean(axis=1))
 
 def main():

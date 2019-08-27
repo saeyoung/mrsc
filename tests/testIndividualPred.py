@@ -111,9 +111,12 @@ def test():
     activePlayers = getActivePlayers(stats, 2016, 4)
     activePlayers.sort()
     # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
-    offMetrics = ["FG%","FT%","3P%"]
-    weights = [1.,1.,1.]
-    expSetup = ["sliding", "SVD", "pre", "pinv", False]
+    # defMetrics = ["TRB_G","STL_G","BLK_G"]
+
+    metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%","TRB_G","STL_G","BLK_G"]
+
+    weights = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
+    expSetup = ["fixed", "SVD", "all", "pinv", False]
 
     singvals_list = [1,2,4,8,16,32]
 
@@ -126,7 +129,7 @@ def test():
             donor = Donor(allPivotedTableDict, df_year)
 
             mrsc = mRSC(donor, target, probObservation=1)
-            mrsc.fit(offMetrics, weights, 2016, pred_length = 1, singvals = singvals, setup = expSetup)
+            mrsc.fit(metrics_to_use, weights, 2016, pred_length = 1, singvals = singvals, setup = expSetup)
             
             pred = mrsc.predict()
             true = mrsc.getTrue()
