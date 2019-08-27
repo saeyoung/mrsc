@@ -9,14 +9,15 @@ import random
 import copy
 
 class SVDmodel:
-    def __init__(self, singvals, target_data, donor_data, num_k, interv_index, total_index, setup, probObservation):
+    def __init__(self, weights, singvals, target_data, donor_data, interv_index, total_index, setup, probObservation):
         """
         setup = [mat_form_method, denoise_method, denoise_mat_method, regression_method, skipNan]
         """
+        self.weights = weights
         self.singvals = singvals
         self.target_data = target_data
         self.donor_data = donor_data
-        self.num_k = num_k
+        self.num_k = len(weights)
         self.interv_index = interv_index
         self.total_index = total_index
         
@@ -27,9 +28,21 @@ class SVDmodel:
         
         self.p = probObservation
         
+        self.w_matrix = None
+        # self.inv_w_matrix = None
         self.donor_pre = None
         self.target_pre = None
         self.beta = None
+
+    def get_diagonal(self, weights, T):
+        k = len(weights)
+        diag_matrix = np.zeros((k*T, k*T))
+        i = 0
+        for weight in weights:
+            rng = np.arange(i, i+T)
+            diag_matrix[rng, rng] = weight
+            i += T
+        return diag_matrix
         
     def hsvt(self, df, rank): 
         """
@@ -64,20 +77,37 @@ class SVDmodel:
             indexToChoose = indexToChoose + list(range(k*totalIndex,k*totalIndex + intervIndex))
         return combinedDF.loc[:,indexToChoose]
 
-    def _prepare(self):  
+    def _prepare(self):
         # handle the nan's in target
         numOfNans = np.isnan(self.target_data).sum(axis=1).values / self.num_k
         if (numOfNans != 0):
             cols = self.target_data.columns[~np.isnan(self.target_data).values.flatten()]
             self.target_data = self.target_data.loc[:,cols]
+            self.total_index = int(self.total_index - numOfNans)
+            self.interv_index = int(self.total_index - numOfNans)
             
             if (self.skipNan == False):
                 self.donor_data = self.donor_data.loc[:,cols]
             else:
-                total_index = self.target_data.shape[1]/self.num_k 
-                interv_index = total_index - numOfNans
-                self.donor_data = self.get_preint_data(self.donor_data, interv_index, total_index, self.num_k, reindex = False)
-          
+                self.donor_data = self.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k, reindex = True)
+        # print("nan", numOfNans)
+        # print("tar", self.target_data.columns)
+        # print("tar", self.target_data.shape)
+        # print("don", self.donor_data.columns)
+        # print("don", self.donor_data.shape)
+
+        # apply weights
+        self.w_matrix = self.get_diagonal(self.weights, self.total_index)
+        # self.inv_w_matrix = np.diag(1 / np.diag(self.w_matrix))
+
+        # print("interv  ", self.interv_index)
+        # print("total   ", self.total_index)
+        # print("w_matrix", self.w_matrix.shape)
+        # print("target  ", self.target_data.shape)
+        # print("donor   ", self.donor_data.shape)
+        self.target_data = self.target_data.dot(self.w_matrix)
+        self.donor_data = self.donor_data.dot(self.w_matrix)
+
         # get self.donor_pre
         if (self.denoise_mat_method == "all"):
             df_hsvt = self.hsvt(self.donor_data, self.singvals)

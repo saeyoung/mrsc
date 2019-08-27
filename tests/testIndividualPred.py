@@ -21,11 +21,14 @@ from mrsc.src.synthcontrol.mRSC import mRSC
 from mrsc.src.importData import *
 import mrsc.src.utils as utils
 
-def getActivePlayers(stats, year):
+def getActivePlayers(stats, year, buffer):
     # list of name of the players who were active in this and last year
     thisYear = stats[stats.Year == year].copy()
-    lastYear = stats[stats.Year == (year-1)].copy()
-    return list(set(thisYear.Player.unique()) & set(lastYear.Player.unique()))
+    players = list(thisYear.Player.unique())
+    for i in range(1, buffer+1):
+        previousYear = stats[stats.Year == (year-i)].copy()
+        players = list(set(players) & set(previousYear.Player.unique()))
+    return players
 
 def topPlayers(stats, year, metric, n):
     stats = stats[stats.Year == year]
@@ -100,9 +103,15 @@ def test():
     # this matrix will be used to mask the table
     df_year = pd.pivot_table(stats, values="Year", index="Player", columns = "year_count")
 
-    activePlayers = getActivePlayers(stats, 2017)
+
+    """
+    experiment setup
+    """
+    activePlayers = getActivePlayers(stats, 2016, 4)
     activePlayers.sort()
-    offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
+    # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
+    offMetrics = ["FG%","FT%","3P%"]
+    weights = [1.,1.,1.]
     expSetup = ["sliding", "SVD", "pre", "pinv", False]
 
     singvals_list = [1,2,4,8,16,32]
@@ -115,7 +124,7 @@ def test():
             donor = Donor(allPivotedTableDict, df_year)
 
             mrsc = mRSC(donor, target, probObservation=1)
-            mrsc.fit(offMetrics, 2016, pred_length = 1, singvals = singvals, setup = expSetup)
+            mrsc.fit(offMetrics, weights, 2016, pred_length = 1, singvals = singvals, setup = expSetup)
             
             pred = mrsc.predict()
             true = mrsc.getTrue()

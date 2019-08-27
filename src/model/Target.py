@@ -33,4 +33,5 @@ class Target:
         df_concat = pd.DataFrame()
         for metric in metrics:
             df_concat = pd.concat([df_concat,self.data[metric].iloc[:,:max_index.astype(int)]],axis=1)
+        df_concat.columns = range(df_concat.shape[1])
         return df_concat

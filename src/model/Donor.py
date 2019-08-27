@@ -67,5 +67,6 @@ class Donor:
                 df_concat = pd.concat([df_concat, self.slidingWindow(df_valid, window)], axis=1)
             elif (method == "fixed"):
                 df_concat = pd.concat([df_concat, self.fixedWindow(df_valid, window)], axis=1)
+        df_concat.columns = range(df_concat.shape[1])
         return df_concat
 
