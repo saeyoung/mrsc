@@ -21,9 +21,6 @@ from mrsc.src.synthcontrol.mRSC import mRSC
 from mrsc.src.importData import *
 import mrsc.src.utils as utils
 
-def importData():
-
-
 def getActivePlayers(stats, year, buffer):
     # list of name of the players who were active in this and last year
     thisYear = stats[stats.Year == year].copy()
