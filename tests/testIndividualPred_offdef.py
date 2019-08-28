@@ -109,42 +109,62 @@ def test():
     """
     activePlayers = getActivePlayers(stats, 2016, 4)
     activePlayers.sort()
-    # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
-    # defMetrics = ["TRB_G","STL_G","BLK_G"]
-
-    metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%","TRB_G","STL_G","BLK_G"]
-    weights = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
-    expSetup = ["sliding", "SVD", "all", "pinv", False]
-    thresholds_list = [0.95,0.97,0.99]
-
     activePlayers.remove("Kevin Garnett")
     activePlayers.remove("Kobe Bryant")
 
-    print("start experiment")
-    for threshold in thresholds_list:
-        pred_all = pd.DataFrame()
-        true_all = pd.DataFrame()
-        for playerName in activePlayers:
-            target = Target(playerName, allPivotedTableDict, df_year)
-            donor = Donor(allPivotedTableDict, df_year)
+    offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
+    defMetrics = ["TRB_G","STL_G","BLK_G"]
+    
+    #### uniform weights
+    # weightsOff = [1.,1.,1.,1.,1.,1.,1.]
+    # weightsDef = [1.,1.,1.]
 
-            mrsc = mRSC(donor, target, probObservation=1)
-            mrsc.fit_threshold(metrics_to_use, weights, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
-          
-            pred = mrsc.predict()
-            true = mrsc.getTrue()
-            pred.columns = [playerName]
-            true.columns = [playerName]
-            
-            pred_all = pd.concat([pred_all, pred], axis=1)
-            true_all = pd.concat([true_all, true], axis=1)
+    #### mean-standardized weights
+    # weightsOff = [0.12623068620631453, 0.55687314142618904, 0.82115849366536209, 0.080245455622805287, 2.2838580004246301, 1.4304474472757014, 4.7552939398878413]
+    # weightsDef = [0.28744431242409424, 1.5323016513327052, 2.4985245915220626]
+
+    #### variance-standardized weights (1/(x+1))
+    weightsOff = [0.030226243506617984, 0.23767435579974203, 0.62302081521153241, 0.028496590283710845, 0.99135485530619705, 0.96678243679381637, 0.96723382349958986]
+    weightsDef = [0.14231010741961231, 0.82630141067410789, 0.8168122805751753]
+    
+    expSetup = ["sliding", "SVD", "all", "pinv", False]
+    threshold = 0.97
+
+    print("start experiment")
+    pred_all = pd.DataFrame()
+    true_all = pd.DataFrame()
+    for playerName in activePlayers:
+        target = Target(playerName, allPivotedTableDict, df_year)
+        donor = Donor(allPivotedTableDict, df_year)
+
+        mrsc = mRSC(donor, target, probObservation=1)
+        mrsc.fit_threshold(offMetrics, weightsOff, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+      
+        predOff = mrsc.predict()
+        trueOff = mrsc.getTrue()
+        predOff.columns = [playerName]
+        trueOff.columns = [playerName]
+
+        mrsc.fit_threshold(defMetrics, weightsDef, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+        predDef = mrsc.predict()
+        trueDef = mrsc.getTrue()
+        predDef.columns = [playerName]
+        trueDef.columns = [playerName]
+        
+        pred = pd.concat([predOff, predDef], axis=0)
+        true = pd.concat([trueOff, trueDef], axis=0)
+
+        pred_all = pd.concat([pred_all, pred], axis=1)
+        true_all = pd.concat([true_all, true], axis=1)
 
 ###################
-        mask = (true_all !=0 )
-        mape = np.abs(pred_all - true_all) / true_all[mask]
-        print(threshold)
-        print(mape.mean(axis=1))
-        print("mean of all metrics: ", mape.mean().mean())
+    mask = (true_all !=0 )
+    mape = np.abs(pred_all - true_all) / true_all[mask]
+    print(mape.mean(axis=1))
+    print("MAPE for all: ", mape.mean().mean())
+    rmse = utils.rmse_2d(true_all, pred_all)
+    print(rmse)
+    print("RMSE for all: ", rmse.mean())
 
 def main():
     print("*******************************************************")

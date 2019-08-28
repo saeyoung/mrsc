@@ -137,12 +137,12 @@ class mRSC:
             # print(donor_pre.shape)
             singvals = utils.approximate_rank(donor_pre, threshold)
         
-        u, s, v = np.linalg.svd(self.donor_data, full_matrices=False)
-        for k in range(1,10,1):
-            print(k, " : ", np.sum(s[:k]**2) / np.sum(s ** 2))
+        # u, s, v = np.linalg.svd(self.donor_data, full_matrices=False)
+        # for k in range(1,10,1):
+        #     print(k, " : ", np.sum(s[:k]**2) / np.sum(s ** 2))
 
-        print("threshold: ", threshold)
-        print("singvals : ",singvals)
+        # print("threshold: ", threshold)
+        # print("singvals : ",singvals)
         
         # denoise & learn weights
         if (denoise_method == "SVD"):

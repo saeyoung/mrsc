@@ -8,7 +8,6 @@ import pandas as pd
 import random
 import copy
 
-from sklearn.metrics import mean_squared_error
 from numpy.linalg import svd, matrix_rank, norm
 
 def getIndivFromDict(keys, data):
@@ -120,13 +119,13 @@ def approximate_rank(X, t = 0.99):
 #         slidingWindowList.append(slidingWindowDF(values[i], window, p=0, save=False))
 #     return slidingWindowList
 
-# def mse_2d(y, y_pred):
-#     # y, y_pred are df (2d)
-#     return ((y - y_pred) ** 2).mean(axis=1)
+def mse_2d(y, y_pred):
+    # y, y_pred are df (2d)
+    return ((y - y_pred) ** 2).mean(axis=1)
 
-# def rmse_2d(y, y_pred):
-#     # y, y_pred are df (2d)
-#     return np.sqrt(((y - y_pred) ** 2).mean(axis=1))
+def rmse_2d(y, y_pred):
+    # y, y_pred are df (2d)
+    return np.sqrt(((y - y_pred) ** 2).mean(axis=1))
 
 # def mse(y, y_pred):
 #     # y, ypred are 1d array

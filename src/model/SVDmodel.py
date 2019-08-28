@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import random
 import copy
+from sklearn import linear_model
 
 import mrsc.src.utils as utils
 
@@ -114,12 +115,14 @@ class SVDmodel:
         elif (self.regression_method == 'lr'):
             regr = linear_model.LinearRegression(fit_intercept=True)
             regr.fit(self.donor_pre.T, self.target_pre.T)
-            self.beta = regr.coef_  
+            self.beta = regr.coef_
+            self.beta = self.beta.T
 
         elif (self.regression_method == 'lasso'):
             regr = linear_model.Lasso(alpha = 1.0, fit_intercept=False)
             regr.fit(self.donor_pre.T, self.target_pre.T)
             self.beta = regr.coef_
+            self.beta = self.beta.T
             
         else:
             raise ValueError("Invalid regression method. Should be 'lr' or 'pinv' or 'lasso'.")
