@@ -161,7 +161,7 @@ class mRSC:
         df_return = (df) rows: metrics, cols: calendar year. Contains predicted values.
         """
         donor_post = utils.get_postint_data(combinedDF = self.donor_data, intervIndex = self.interv_index, totalIndex = self.total_index, nbrMetrics = self.num_k, reindex = True) 
-        df_pred = np.dot(donor_post.T, self.model.beta).T.flatten()
+        df_pred = np.dot(donor_post.T, self.model.beta)
 
         df_return = pd.DataFrame(index = self.metrics, columns = range(self.pred_year, self.pred_year + self.pred_length, 1))
         for k in range(self.num_k):

@@ -70,7 +70,7 @@ def test():
     """
     import data
     """
-    print("importing data")
+    print("* importing data")
     players = pd.read_csv("../data/nba-players-stats/player_data.csv")
     players = players[players.year_start >= 1980] # only choose players who started after 1980
     players["player_id"] = range(0,len(players.name)) # assign id
@@ -86,7 +86,7 @@ def test():
     stats.Year = stats.Year.astype(int)
     stats.year_count = stats.year_count.astype(int)
 
-    print("preparing data")
+    print("* preparing data")
     # transform stats to a dictionary composed of df's for each stat
     # the stats are re-calculated to get one stat for each year
     metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK"]
@@ -115,12 +115,12 @@ def test():
     metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%","TRB_G","STL_G","BLK_G"]
     weights = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
     expSetup = ["sliding", "SVD", "all", "pinv", False]
-    thresholds_list = [0.95,0.97,0.99]
+    thresholds_list = [0.95,0.96,0.97,0.98,0.99]
 
     activePlayers.remove("Kevin Garnett")
     activePlayers.remove("Kobe Bryant")
 
-    print("start experiment")
+    print("* start experiment")
     for threshold in thresholds_list:
         pred_all = pd.DataFrame()
         true_all = pd.DataFrame()
@@ -140,19 +140,34 @@ def test():
             true_all = pd.concat([true_all, true], axis=1)
 
 ###################
+        print()
+        print(threshold)
+
         mask = (true_all !=0 )
         mape = np.abs(pred_all - true_all) / true_all[mask]
-        print(threshold)
+        print()
         print(mape.mean(axis=1))
-        print("mean of all metrics: ", mape.mean().mean())
+        print("MAPE for all: ", mape.mean().mean())
+
+        rmse = utils.rmse_2d(true_all, pred_all)
+        print()
+        print(rmse)
+        print("RMSE for all: ", rmse.mean())
+
+        weirdo = mape.T[mape.T.PTS_G > 100].T
+        print()
+        print(weirdo)
+        print(weirdo.shape)
 
 def main():
     print("*******************************************************")
     print("*******************************************************")
     print("********** Running the Testing Scripts. ***************")
+    print()
 
     test()
 
+    print()
     print("********** Testing Scripts Done. **********************")
     print("*******************************************************")
     print("*******************************************************")
