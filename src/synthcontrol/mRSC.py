@@ -5,6 +5,8 @@
 ################################################################
 import numpy as np
 import pandas as pd
+import copy
+from matplotlib import pyplot as plt
 
 from mrsc.src.model.SVDmodel import SVDmodel
 from mrsc.src.model.Target import Target
@@ -137,13 +139,6 @@ class mRSC:
             # print(donor_pre.shape)
             singvals = utils.approximate_rank(donor_pre, threshold)
         
-        # u, s, v = np.linalg.svd(self.donor_data, full_matrices=False)
-        # for k in range(1,10,1):
-        #     print(k, " : ", np.sum(s[:k]**2) / np.sum(s ** 2))
-
-        # print("threshold: ", threshold)
-        # print("singvals : ",singvals)
-        
         # denoise & learn weights
         if (denoise_method == "SVD"):
             self.model = SVDmodel(weights, singvals, self.target_data, self.donor_data, self.interv_index, self.total_index, setup, self.p)
@@ -154,7 +149,7 @@ class mRSC:
 #             self.model = ALSModel(self.kSingularValues, self.N, self.M, probObservation=self.p, otherSeriesKeysArray=self.otherSeriesKeysArray, includePastDataOnly=False)
         else:
             raise ValueError("Invalid denoise method. Should be 'SVD' or 'ALS'.")
-        
+
     def predict(self):
         """
         donor_post = (df) donor data after the intervention point
@@ -178,4 +173,21 @@ class mRSC:
         df_return = pd.DataFrame(index = self.metrics, columns = range(self.pred_year, self.pred_year + self.pred_length, 1))
         for k in range(self.num_k):
             df_return.iloc[k,:] = target_post.iloc[:,k*self.pred_length: (k+1)*self.pred_length].values
-        return df_return        
+        return df_return
+
+    def plot(self):
+        for j in range(len(self.metrics)):
+            metric = self.metrics[j]
+            true_trajectory = self.target.data[metric].dropna(axis='columns').iloc[:,:self.total_index]
+            print(self.donor_data.iloc[:,j*self.model.total_index:((j+1)*self.total_index)].T)
+            pred_val = np.dot(self.donor_data.iloc[:,j*self.model.total_index:((j+1)*self.total_index)].T, self.model.beta).T
+            pred_trajectory = pd.DataFrame(pred_val, columns =true_trajectory.columns, index=true_trajectory.index)
+
+            markers_on = [true_trajectory.shape[1]-self.pred_length]
+            plt.plot(true_trajectory.T, marker = 'o', color='red', label = "true")
+            plt.plot(pred_trajectory.T, marker = 'o', markevery=markers_on, color='blue', label="prediction")
+            plt.xlabel("years played in NBA")
+            plt.ylabel(metric)
+            plt.title(self.target.key)
+            plt.legend()
+            plt.show()        

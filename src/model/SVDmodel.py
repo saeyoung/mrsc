@@ -19,8 +19,8 @@ class SVDmodel:
         """
         self.weights = weights
         self.singvals = singvals
-        self.target_data = target_data
-        self.donor_data = donor_data
+        self.target_data = copy.deepcopy(target_data)
+        self.donor_data = copy.deepcopy(donor_data)
         self.num_k = len(weights)
         self.interv_index = interv_index
         self.total_index = total_index
@@ -33,7 +33,7 @@ class SVDmodel:
         self.p = probObservation
         
         self.w_matrix = None
-        # self.inv_w_matrix = None
+        self.inv_w_matrix = None
         self.donor_pre = None
         self.target_pre = None
         self.beta = None
@@ -76,21 +76,10 @@ class SVDmodel:
                 self.donor_data = self.donor_data.loc[:,cols]
             else:
                 self.donor_data = utils.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k, reindex = True)
-        # print("nan", numOfNans)
-        # print("tar", self.target_data.columns)
-        # print("tar", self.target_data.shape)
-        # print("don", self.donor_data.columns)
-        # print("don", self.donor_data.shape)
 
         # apply weights
         self.w_matrix = self.get_diagonal(self.weights, self.total_index)
-        # self.inv_w_matrix = np.diag(1 / np.diag(self.w_matrix))
-
-        # print("interv  ", self.interv_index)
-        # print("total   ", self.total_index)
-        # print("w_matrix", self.w_matrix.shape)
-        # print("target  ", self.target_data.shape)
-        # print("donor   ", self.donor_data.shape)
+        self.inv_w_matrix = np.diag(1 / np.diag(self.w_matrix))
         self.target_data = self.target_data.dot(self.w_matrix)
         self.donor_data = self.donor_data.dot(self.w_matrix)
 
@@ -128,6 +117,9 @@ class SVDmodel:
             
         else:
             raise ValueError("Invalid regression method. Should be 'lr' or 'pinv' or 'lasso'.")
+
+        self.target_data = self.target_data.dot(self.inv_w_matrix)
+        self.donor_data = self.donor_data.dot(self.inv_w_matrix)
         # print()
         # print(self.beta)
 ########################################################

@@ -36,35 +36,6 @@ def topPlayers(stats, year, metric, n):
     stats_sorted = stats[stats.Year == year].sort_values(metric, ascending = False).reset_index(drop=True)
     return stats_sorted[["Player","player_id"]][:n]
 
-def removeDuplicated(players, stats):
-    """
-    players: "../data/nba-players-stats/player_data.csv"
-    stats: "../data/nba-players-stats/Seasons_Stats.csv"
-    """
-    # players with the same name
-    names = players.name.unique()
-    duplicated = np.array([])
-
-    for name in names:
-        numrows = len(players[players.name == name])
-        if numrows != 1:
-            duplicated = np.append(duplicated, name)
-
-    duplicated = np.sort(duplicated)
-
-    start_year = players.copy()
-    start_year = start_year.rename(columns={"name":"Player"})
-
-    # for non-duplicated players
-    stats_not_duplicated = stats[~stats.Player.isin(duplicated)]
-    stats_not_duplicated = pd.merge(stats_not_duplicated, start_year, on="Player", how="left")
-
-    # only take the values that make sense
-    stats_not_duplicated = stats_not_duplicated[(stats_not_duplicated.Year >= stats_not_duplicated.year_start) & (stats_not_duplicated.Year <= stats_not_duplicated.year_end )]
-    stats_not_duplicated["year_count"] = stats_not_duplicated.Year - stats_not_duplicated.year_start
-
-    return stats_not_duplicated
-
 def getWeitghts(target, donor, metrics_list, expSetup, method = "mean"):   
     # get mat_form_method
     mat_form_method = expSetup[0] # "fixed"
@@ -130,56 +101,79 @@ def test():
     # this matrix will be used to mask the table
     df_year = pd.pivot_table(stats, values="Year", index="Player", columns = "year_count")
 
+
     """
     experiment setup
     """
-    activePlayers = getActivePlayers(stats, 2016, 4)
-    activePlayers.sort()
-    activePlayers.remove("Kevin Garnett")
-    activePlayers.remove("Kobe Bryant")
-
-    # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
-    # defMetrics = ["TRB_G","STL_G","BLK_G"]
+    # overall setup
     expSetup = ["sliding", "SVD", "all", "pinv", False]
     threshold = 0.97
-    metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%","TRB_G","STL_G","BLK_G"]
-    
-    weights1 = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
-    # weights 2 standardized mean
-    weights2 = [0.12623068620631453, 0.55687314142618904, 0.82115849366536209, 0.080245455622805287, 2.2838580004246301, 1.4304474472757014, 4.7552939398878413, 0.28744431242409424, 1.5323016513327052, 2.4985245915220626]
-    # weights 3 standardizes std
-    weights3 = [0.030226243506617984, 0.23767435579974203, 0.62302081521153241, 0.028496590283710845, 0.99135485530619705, 0.96678243679381637, 0.96723382349958986, 0.14231010741961231, 0.82630141067410789, 0.8168122805751753]
 
-    weights_list = [weights1, weights2, weights3]
+    metrics1 = ["PTS_G","PER_w","AST_G","TRB_G"]
+    metrics2 = ["FG%","FT%","3P%"]
+    metrics3 = ["BLK_G","TOV_G","STL_G"]
 
-    print("start experiment")
-    for weights in weights_list:
-        pred_all = pd.DataFrame()
-        true_all = pd.DataFrame()
-        for playerName in activePlayers:
-            target = Target(playerName, allPivotedTableDict, df_year)
-            donor = Donor(allPivotedTableDict, df_year)
+    metrics_list = [metrics1, metrics2, metrics3]
 
-            mrsc = mRSC(donor, target, probObservation=1)
-            mrsc.fit_threshold(metrics_to_use, weights, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
-          
-            pred = mrsc.predict()
-            true = mrsc.getTrue()
-            pred.columns = [playerName]
-            true.columns = [playerName]
-            
-            pred_all = pd.concat([pred_all, pred], axis=1)
-            true_all = pd.concat([true_all, true], axis=1)
+    ###################################################
+    # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
+    # defMetrics = ["TRB_G","STL_G","BLK_G"]
+    # metrics_list = [offMetrics, defMetrics]
 
-###################
-        print(weights)
-        mask = (true_all !=0 )
-        mape = np.abs(pred_all - true_all) / true_all[mask]
-        print(mape.mean(axis=1))
-        print("MAPE for all: ", mape.mean().mean())
-        rmse = utils.rmse_2d(true_all, pred_all)
-        print(rmse)
-        print("RMSE for all: ", rmse.mean())
+    ###################################################
+    playerName = "Ryan Anderson"
+
+    target = Target(playerName, allPivotedTableDict, df_year)
+    donor = Donor(allPivotedTableDict, df_year)
+
+    weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="mean")
+
+    mrsc = mRSC(donor, target, probObservation=1)
+
+    fig, axs = plt.subplots(3, 5)
+    player_pred = pd.DataFrame()
+    player_true = pd.DataFrame()
+    for i in range(len(metrics_list)):
+        mrsc.fit_threshold(metrics_list[i], weights_list[i], 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+        pred = mrsc.predict()
+        true = mrsc.getTrue()
+        pred.columns = [playerName]
+        true.columns = [playerName]
+        player_pred = pd.concat([player_pred, pred], axis=0)
+        player_true = pd.concat([player_true, true], axis=0)
+
+        # mrsc.plot()
+        for j in range(len(metrics_list[i])):
+            metric = metrics_list[i][j]
+            true_trajectory = target.data[metric].dropna(axis='columns').iloc[:,:mrsc.total_index]
+
+            pred_val = np.dot(mrsc.model.donor_data.iloc[:,j*mrsc.model.total_index:((j+1)*mrsc.model.total_index)].T, mrsc.model.beta).T
+            pred_trajectory = pd.DataFrame(pred_val, columns =true_trajectory.columns, index=true_trajectory.index)
+
+            markers_on = [true_trajectory.shape[1]-1]
+
+            axs[i, j].plot(true_trajectory.T, marker = 'o', color='red', label='true')
+            axs[i, j].plot(pred_trajectory.T, marker = 'o', markevery=markers_on, color='blue', label='prediction')
+            axs[i, j].set_title(playerName + ": " +metric)
+            # axs[i, j].legend()
+
+    for ax in axs.flat:
+        ax.set(xlabel='years played in NBA')
+    plt.subplots_adjust(wspace = 0.5, hspace = 0.5)
+    plt.show()
+
+    ###################
+    mask = (player_true !=0 )
+    mape = np.abs(player_pred - player_true) / player_true[mask]
+    print("*** MAPE ***")
+    print(mape.mean(axis=1))
+    print("MAPE for all: ", mape.mean().mean())
+
+    rmse = utils.rmse_2d(player_true, player_pred)
+    print()
+    print("*** RMSE ***")
+    print(rmse)
+    print("RMSE for all: ", rmse.mean())
 
 def main():
     print("*******************************************************")
