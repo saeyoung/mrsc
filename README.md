@@ -4,5 +4,6 @@
 Supported for Python 2.7 and 3+.
 
 dependency:
-numpy 1.13.3
-pandas 0.24.2
+numpy 1.17.1
+pandas 0.25.1
+scipy 1.3.1
