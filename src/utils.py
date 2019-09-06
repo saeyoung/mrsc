@@ -9,6 +9,31 @@ import random
 import copy
 
 from numpy.linalg import svd, matrix_rank, norm
+from matplotlib import pyplot as plt
+
+def svdAanlysis(df, k = 6, title = None, verbose = True):
+    """
+    df = dataframe to perform svd on
+    k = the max number of singular values to calculate energy test. the return list is length of k.
+    title = title of the plot (optional)
+    verbose = if Ture, show the plot and accumulated energy up until each singvals (optional)
+              if False, does not print anything and just return energy_list
+    """
+    u, s, v = np.linalg.svd(df)
+    
+    if verbose:
+        plt.plot(s)
+        plt.title(title)
+        plt.show()
+    
+    energy_list = []
+    for i in range(1,k+1,1):
+        energy = np.sum(s[:i]**2) / np.sum(s ** 2)
+        energy_list.append(energy)
+        if verbose:
+            print("Energy up until",i, "th singular value: ", energy)
+        
+    return energy_list
 
 def getIndivFromDict(keys, data):
     """

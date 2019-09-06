@@ -96,7 +96,7 @@ def test():
     """
     import data
     """
-    print("importing data")
+    print("* importing data")
     players = pd.read_csv("../data/nba-players-stats/player_data.csv")
     players = players[players.year_start >= 1980] # only choose players who started after 1980
     players["player_id"] = range(0,len(players.name)) # assign id
@@ -112,13 +112,13 @@ def test():
     stats.Year = stats.Year.astype(int)
     stats.year_count = stats.year_count.astype(int)
 
-    print("preparing data")
+    print("* preparing data")
     # transform stats to a dictionary composed of df's for each stat
     # the stats are re-calculated to get one stat for each year
-    metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK"]
+    metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK","3P"]
     metricsPerGameDict = getMetricsPerGameDict(stats, metricsPerGameColNames)
 
-    metricsPerCentColNames = ["FG","FT","3P"]
+    metricsPerCentColNames = ["FG","FT"]
     metricsPerCentDict = getMetricsPerCentDict(stats, metricsPerCentColNames)
 
     metricsWeightedColNames = ["PER"]
@@ -126,6 +126,7 @@ def test():
 
     allMetricsDict = {**metricsPerGameDict, **metricsPerCentDict, **metricsWeightedDict}
     allPivotedTableDict = getPivotedTableDict(allMetricsDict)
+    allMetrics = list(allMetricsDict.keys())
 
     # this matrix will be used to mask the table
     df_year = pd.pivot_table(stats, values="Year", index="Player", columns = "year_count")
@@ -138,48 +139,113 @@ def test():
     activePlayers.remove("Kevin Garnett")
     activePlayers.remove("Kobe Bryant")
 
-    # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
+    # offMetrics = ["PTS_G","AST_G","TOV_G","3P_G","PER_w", "FG%","FT%"]
     # defMetrics = ["TRB_G","STL_G","BLK_G"]
     expSetup = ["sliding", "SVD", "all", "pinv", False]
     threshold = 0.97
-    metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%","TRB_G","STL_G","BLK_G"]
-    
-    weights1 = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
-    # weights 2 standardized mean
-    weights2 = [0.12623068620631453, 0.55687314142618904, 0.82115849366536209, 0.080245455622805287, 2.2838580004246301, 1.4304474472757014, 4.7552939398878413, 0.28744431242409424, 1.5323016513327052, 2.4985245915220626]
-    # weights 3 standardizes std
-    weights3 = [0.030226243506617984, 0.23767435579974203, 0.62302081521153241, 0.028496590283710845, 0.99135485530619705, 0.96678243679381637, 0.96723382349958986, 0.14231010741961231, 0.82630141067410789, 0.8168122805751753]
+    metrics_to_use = ["PTS_G","AST_G","TOV_G","3P_G","PER_w", "FG%","FT%","TRB_G","STL_G","BLK_G"]
 
-    weights_list = [weights1, weights2, weights3]
+    print("* start experiment")
 
-    print("start experiment")
-    for weights in weights_list:
-        pred_all = pd.DataFrame()
-        true_all = pd.DataFrame()
-        for playerName in activePlayers:
-            target = Target(playerName, allPivotedTableDict, df_year)
-            donor = Donor(allPivotedTableDict, df_year)
+    print("*******************")
+    print("uniform weights")
+    weights = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
+    pred_all = pd.DataFrame()
+    true_all = pd.DataFrame()
+    for playerName in activePlayers:
+        target = Target(playerName, allPivotedTableDict, df_year)
+        donor = Donor(allPivotedTableDict, df_year)
 
-            mrsc = mRSC(donor, target, probObservation=1)
-            mrsc.fit_threshold(metrics_to_use, weights, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
-          
-            pred = mrsc.predict()
-            true = mrsc.getTrue()
-            pred.columns = [playerName]
-            true.columns = [playerName]
-            
-            pred_all = pd.concat([pred_all, pred], axis=1)
-            true_all = pd.concat([true_all, true], axis=1)
+        mrsc = mRSC(donor, target, probObservation=1)
+        mrsc.fit_threshold(metrics_to_use, weights, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+      
+        pred = mrsc.predict()
+        true = mrsc.getTrue()
+        pred.columns = [playerName]
+        true.columns = [playerName]
+        
+        pred_all = pd.concat([pred_all, pred], axis=1)
+        true_all = pd.concat([true_all, true], axis=1)
+    print()
+    print("*** MAPE ***")
+    mask = (true_all !=0 )
+    mape = np.abs(pred_all - true_all) / true_all[mask]
+    print(mape.mean(axis=1))
+    print("MAPE for all: ", mape.mean().mean())
+    rmse = utils.rmse_2d(true_all, pred_all)
+    print()
+    print("*** RMSE ***")
+    print(rmse)
+    print("RMSE for all: ", rmse.mean())
 
-###################
-        print(weights)
-        mask = (true_all !=0 )
-        mape = np.abs(pred_all - true_all) / true_all[mask]
-        print(mape.mean(axis=1))
-        print("MAPE for all: ", mape.mean().mean())
-        rmse = utils.rmse_2d(true_all, pred_all)
-        print(rmse)
-        print("RMSE for all: ", rmse.mean())
+
+    print("*******************")
+    print("mean - standardized weights")
+    metrics_list = [metrics_to_use]
+    weights = getWeitghts(target, donor, metrics_list, expSetup, method="mean")[0]
+
+    pred_all = pd.DataFrame()
+    true_all = pd.DataFrame()
+    for playerName in activePlayers:
+        target = Target(playerName, allPivotedTableDict, df_year)
+        donor = Donor(allPivotedTableDict, df_year)
+
+        mrsc = mRSC(donor, target, probObservation=1)
+        mrsc.fit_threshold(metrics_to_use, weights, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+      
+        pred = mrsc.predict()
+        true = mrsc.getTrue()
+        pred.columns = [playerName]
+        true.columns = [playerName]
+        
+        pred_all = pd.concat([pred_all, pred], axis=1)
+        true_all = pd.concat([true_all, true], axis=1)
+    print()
+    print("*** MAPE ***")
+    mask = (true_all !=0 )
+    mape = np.abs(pred_all - true_all) / true_all[mask]
+    print(mape.mean(axis=1))
+    print("MAPE for all: ", mape.mean().mean())
+    rmse = utils.rmse_2d(true_all, pred_all)
+    print()
+    print("*** RMSE ***")
+    print(rmse)
+    print("RMSE for all: ", rmse.mean())
+
+    print("*******************")
+    print("var - standardized weights")
+    metrics_list = [metrics_to_use]
+    weights = getWeitghts(target, donor, metrics_list, expSetup, method="var")[0]
+
+    pred_all = pd.DataFrame()
+    true_all = pd.DataFrame()
+    for playerName in activePlayers:
+        target = Target(playerName, allPivotedTableDict, df_year)
+        donor = Donor(allPivotedTableDict, df_year)
+
+        mrsc = mRSC(donor, target, probObservation=1)
+        mrsc.fit_threshold(metrics_to_use, weights, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+      
+        pred = mrsc.predict()
+        true = mrsc.getTrue()
+        pred.columns = [playerName]
+        true.columns = [playerName]
+        
+        pred_all = pd.concat([pred_all, pred], axis=1)
+        true_all = pd.concat([true_all, true], axis=1)
+    print()
+    print("*** MAPE ***")
+    mask = (true_all !=0 )
+    mape = np.abs(pred_all - true_all) / true_all[mask]
+    print(mape.mean(axis=1))
+    print("MAPE for all: ", mape.mean().mean())
+    rmse = utils.rmse_2d(true_all, pred_all)
+    print()
+    print("*** RMSE ***")
+    print(rmse)
+    print("RMSE for all: ", rmse.mean())
+
+
 
 def main():
     print("*******************************************************")

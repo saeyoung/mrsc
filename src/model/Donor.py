@@ -57,7 +57,7 @@ class Donor:
         pred_year: (int) the year you want to make a prediction
         window: (int) window size
         
-        output: (dict) maked dict containing all values before pred_year
+        output: concatenated donor matrix
         """
         mask = self.years < pred_year
         df_concat = pd.DataFrame()
@@ -69,4 +69,23 @@ class Donor:
                 df_concat = pd.concat([df_concat, self.fixedWindow(df_valid, window)], axis=1)
         df_concat.columns = range(df_concat.shape[1])
         return df_concat
+
+    def dict(self, metrics, pred_year, window, method = "sliding"):
+        """
+        metrics: (list) metrics you want to use
+        pred_year: (int) the year you want to make a prediction
+        window: (int) window size
+        
+        output: (dict) donor matrix for each metric, {metric: df}
+        """
+        mask = self.years < pred_year
+        dict_return = {}
+        for metric in metrics:
+            df_valid = self.data[metric][mask]
+            if (method == "sliding"):
+                df = self.slidingWindow(df_valid, window)
+            elif (method == "fixed"):
+                df = self.fixedWindow(df_valid, window)
+            dict_return.update({metric:df})
+        return dict_return
 

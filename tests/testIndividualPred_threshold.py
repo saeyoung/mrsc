@@ -89,10 +89,10 @@ def test():
     print("* preparing data")
     # transform stats to a dictionary composed of df's for each stat
     # the stats are re-calculated to get one stat for each year
-    metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK"]
+    metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK","3P"]
     metricsPerGameDict = getMetricsPerGameDict(stats, metricsPerGameColNames)
 
-    metricsPerCentColNames = ["FG","FT","3P"]
+    metricsPerCentColNames = ["FG","FT"]
     metricsPerCentDict = getMetricsPerCentDict(stats, metricsPerCentColNames)
 
     metricsWeightedColNames = ["PER"]
@@ -100,6 +100,7 @@ def test():
 
     allMetricsDict = {**metricsPerGameDict, **metricsPerCentDict, **metricsWeightedDict}
     allPivotedTableDict = getPivotedTableDict(allMetricsDict)
+    allMetrics = list(allMetricsDict.keys())
 
     # this matrix will be used to mask the table
     df_year = pd.pivot_table(stats, values="Year", index="Player", columns = "year_count")
@@ -112,7 +113,7 @@ def test():
     # offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
     # defMetrics = ["TRB_G","STL_G","BLK_G"]
 
-    metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%","TRB_G","STL_G","BLK_G"]
+    metrics_to_use = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P_G","TRB_G","STL_G","BLK_G"]
     weights = [1.,1.,1.,1.,1.,1.,1.,1.,1.,1.]
     expSetup = ["sliding", "SVD", "all", "pinv", False]
     thresholds_list = [0.95,0.96,0.97,0.98,0.99]

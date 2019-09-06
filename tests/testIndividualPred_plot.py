@@ -86,10 +86,10 @@ def test():
     print("preparing data")
     # transform stats to a dictionary composed of df's for each stat
     # the stats are re-calculated to get one stat for each year
-    metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK"]
+    metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK","3P"]
     metricsPerGameDict = getMetricsPerGameDict(stats, metricsPerGameColNames)
 
-    metricsPerCentColNames = ["FG","FT","3P"]
+    metricsPerCentColNames = ["FG","FT"]
     metricsPerCentDict = getMetricsPerCentDict(stats, metricsPerCentColNames)
 
     metricsWeightedColNames = ["PER"]
@@ -97,6 +97,7 @@ def test():
 
     allMetricsDict = {**metricsPerGameDict, **metricsPerCentDict, **metricsWeightedDict}
     allPivotedTableDict = getPivotedTableDict(allMetricsDict)
+    allMetrics = list(allMetricsDict.keys())
 
     # this matrix will be used to mask the table
     df_year = pd.pivot_table(stats, values="Year", index="Player", columns = "year_count")
@@ -109,9 +110,9 @@ def test():
     expSetup = ["sliding", "SVD", "all", "pinv", False]
     threshold = 0.97
 
-    metrics1 = ["PTS_G","PER_w","AST_G","TRB_G"]
-    metrics2 = ["FG%","FT%","3P%"]
-    metrics3 = ["BLK_G","TOV_G","STL_G"]
+    metrics1 = ["PTS_G","PER_w","TRB_G","3P_G"]
+    metrics2 = ["FG%","FT%"]
+    metrics3 = ["BLK_G","AST_G","TOV_G","STL_G"]
 
     metrics_list = [metrics1, metrics2, metrics3]
 
@@ -126,7 +127,7 @@ def test():
     target = Target(playerName, allPivotedTableDict, df_year)
     donor = Donor(allPivotedTableDict, df_year)
 
-    weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="mean")
+    weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
 
     mrsc = mRSC(donor, target, probObservation=1)
 
