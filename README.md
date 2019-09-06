@@ -1,7 +1,7 @@
 # mrsc
 (multidimensional) synthetic control
 
-Supported for Python 2.7 and 3+.
+Supported for Python 3.6+
 
 dependency:
 numpy 1.17.1
