@@ -200,7 +200,7 @@ def test():
 	print("* start experiment")
 	pred_all = pd.DataFrame()
 	true_all = pd.DataFrame()
-	for playerName in activePlayers[6:11]:
+	for playerName in activePlayers:
 		print()
 		target = Target(playerName, allPivotedTableDict, df_year)
 		donor = Donor(allPivotedTableDict, df_year)
