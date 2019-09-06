@@ -60,7 +60,8 @@ def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup):
                 df = donor.concat(comb, 2016, total_index, method = mat_form_method)
                 energy_at_apprx_rank = utils.svdAanlysis(df, k=apprx_rank, verbose=False)[-1]
                 
-                if(energy_at_apprx_rank > threshold):
+                # if(energy_at_apprx_rank > threshold):
+                if(energy_at_apprx_rank > energy_captured):
                     energy_diff = np.abs(energy_at_apprx_rank - energy_captured)
                     energy_diff_df = pd.concat([energy_diff_df, pd.DataFrame([[energy_diff]], index=[metric])], axis=0)
         #             print(energy_diff)
