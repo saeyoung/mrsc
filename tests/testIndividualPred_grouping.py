@@ -87,7 +87,7 @@ def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, bounda
 	for metric_of_interest in allMetrics:
 		df = donor.concat([metric_of_interest], 2016, total_index, method = mat_form_method)
 		apprx_rank = utils.approximate_rank(df, t = threshold)
-		energy_captured = utils.svdAanlysis(df, title=metric_of_interest, verbose = False)[apprx_rank-1]
+		energy_captured = utils.svdAanlysis(df, title=metric_of_interest, k=apprx_rank, verbose = False)[apprx_rank-1]
 
 		if (boundary == "threshold"):
 			b = threshold
