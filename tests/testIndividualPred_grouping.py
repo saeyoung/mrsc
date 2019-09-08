@@ -226,15 +226,15 @@ def test():
 		player_pred = pd.DataFrame()
 		player_true = pd.DataFrame()
 		for i in range(len(metrics_list)):
-			mrsc.fit_threshold(metrics_list[i], weights_list[i], pred_year, pred_length = 1, threshold = threshold, setup = expSetup)
+		    mrsc.fit_threshold(metrics_list[i], weights_list[i], pred_year, pred_length = 1, threshold = threshold, setup = expSetup)
 
-			pred = mrsc.predict()
-			true = mrsc.getTrue()
-			pred.columns = [playerName]
-			true.columns = [playerName]
+		    pred = mrsc.predict()
+		    true = mrsc.getTrue()
+		    pred.columns = [playerName]
+		    true.columns = [playerName]
 
-			player_pred = pd.concat([player_pred, pred.iloc[0:1,:]], axis=0)
-			player_true = pd.concat([player_true, true.iloc[0:1,:]], axis=0)
+		    player_pred = pd.concat([player_pred, pred.loc[allMetrics[i],:]], axis=0)
+		    player_true = pd.concat([player_true, pred.loc[allMetrics[i],:]], axis=0)
 
 		pred_all = pd.concat([pred_all, player_pred], axis=1)
 		true_all = pd.concat([true_all, player_true], axis=1)
