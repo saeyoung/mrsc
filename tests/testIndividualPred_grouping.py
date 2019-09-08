@@ -249,6 +249,7 @@ def test():
 
 		mask = (true_all !=0 )
 		mape = np.abs(pred_all - true_all) / true_all[mask]
+		print(mape)
 
 	###################
 	print("******** RESULT ********")
