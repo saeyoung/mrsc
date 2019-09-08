@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import copy
+import pickle
 
 from mrsc.src.model.SVDmodel import SVDmodel
 from mrsc.src.model.Target import Target
@@ -212,6 +213,9 @@ def test():
 	print("* start experiment")
 	pred_all = pd.DataFrame()
 	true_all = pd.DataFrame()
+	metrics_all = []
+	with open('metrics_all.pkl', 'wb') as f:
+		pickle.dump(metrics_all, f, pickle.HIGHEST_PROTOCOL)
 	for playerName in activePlayers:
 		print()
 		print("***********", playerName , "************")
@@ -221,6 +225,7 @@ def test():
 		metrics_list = getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, boundary="threshold")
 		weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
 
+		metrics_all.append(metrics_list)
 		print(metrics_list)
 
 		mrsc = mRSC(donor, target, probObservation=1)
@@ -246,7 +251,6 @@ def test():
 	mask = (true_all !=0 )
 	mape = np.abs(pred_all - true_all) / true_all[mask]
 
-	print(mape)
 	print()
 	print("*** MAPE ***")
 	print(mape.mean(axis=1))
@@ -257,6 +261,9 @@ def test():
 	print("*** RMSE ***")
 	print(rmse)
 	print("RMSE for all: ", rmse.mean())
+
+	with open('metrics_all.pkl', 'wb') as f:
+		pickle.dump(metrics_all, f, pickle.HIGHEST_PROTOCOL)
 
 def main():
 	print("*******************************************************")
