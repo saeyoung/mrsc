@@ -247,7 +247,11 @@ def test():
 		pred_all = pd.concat([pred_all, player_pred], axis=1)
 		true_all = pd.concat([true_all, player_true], axis=1)
 
+		mask = (true_all !=0 )
+		mape = np.abs(pred_all - true_all) / true_all[mask]
+
 	###################
+	print("******** RESULT ********")
 	mask = (true_all !=0 )
 	mape = np.abs(pred_all - true_all) / true_all[mask]
 
