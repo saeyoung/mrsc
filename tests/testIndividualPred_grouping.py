@@ -36,18 +36,64 @@ def topPlayers(stats, year, metric, n):
 	stats_sorted = stats[stats.Year == year].sort_values(metric, ascending = False).reset_index(drop=True)
 	return stats_sorted[["Player","player_id"]][:n]
 
-def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup):
+# def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup):
+#     target_data = target.concat(allMetrics, pred_year, pred_length=1)
+
+#     num_k = len(allMetrics)
+#     total_index = int(target_data.shape[1] / num_k)
+#     mat_form_method = expSetup[0]
+
+#     metrics_list = []
+#     for metric_of_interest in allMetrics:
+#         df = donor.concat([metric_of_interest], 2016, total_index, method = mat_form_method)
+#         apprx_rank = utils.approximate_rank(df, t = threshold)
+#         energy_captured = utils.svdAanlysis(df, title=metric_of_interest, verbose = False, k=apprx_rank)[apprx_rank-1]
+
+#         metrics = [metric_of_interest]
+#         candidates = copy.deepcopy(allMetrics)
+#         candidates.remove(metric_of_interest)
+
+#         while True:
+#             energy_diff_df = pd.DataFrame()
+#             for metric in candidates:
+#                 comb = metrics+[metric]
+#                 df = donor.concat(comb, 2016, total_index, method = mat_form_method)
+#                 energy_at_apprx_rank = utils.svdAanlysis(df, k=apprx_rank, verbose=False)[-1]
+                
+#                 # if(energy_at_apprx_rank > threshold):
+#                 if(energy_at_apprx_rank > energy_captured):
+#                     energy_diff = np.abs(energy_at_apprx_rank - energy_captured)
+#                     energy_diff_df = pd.concat([energy_diff_df, pd.DataFrame([[energy_diff]], index=[metric])], axis=0)
+#         #             print(energy_diff)
+#             if (energy_diff_df.shape[0] == 0):
+#                 break
+#             new_metric = energy_diff_df.sort_values(0).index[0]
+#             metrics = metrics + [new_metric]
+#             candidates.remove(new_metric)
+#         metrics_list.append(metrics)
+#         print(metrics)
+
+#     return metrics_list
+
+def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, boundary = "threshold"):
     target_data = target.concat(allMetrics, pred_year, pred_length=1)
 
     num_k = len(allMetrics)
     total_index = int(target_data.shape[1] / num_k)
     mat_form_method = expSetup[0]
-
-    metrics_list = []
+    
+    df_result = pd.DataFrame(0, columns = allMetrics, index = allMetrics)
     for metric_of_interest in allMetrics:
         df = donor.concat([metric_of_interest], 2016, total_index, method = mat_form_method)
         apprx_rank = utils.approximate_rank(df, t = threshold)
-        energy_captured = utils.svdAanlysis(df, title=metric_of_interest, verbose = False, k=apprx_rank)[apprx_rank-1]
+        energy_captured = utils.svdAanlysis(df, title=metric_of_interest, verbose = False)[apprx_rank-1]
+
+        if (boundary == "threshold"):
+            b = threshold
+        elif (boundary == "energy"):
+            b = energy_captured
+        else:
+            raise Exception("wrong parameter")
 
         metrics = [metric_of_interest]
         candidates = copy.deepcopy(allMetrics)
@@ -60,8 +106,7 @@ def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup):
                 df = donor.concat(comb, 2016, total_index, method = mat_form_method)
                 energy_at_apprx_rank = utils.svdAanlysis(df, k=apprx_rank, verbose=False)[-1]
                 
-                # if(energy_at_apprx_rank > threshold):
-                if(energy_at_apprx_rank > energy_captured):
+                if(energy_at_apprx_rank > b):
                     energy_diff = np.abs(energy_at_apprx_rank - energy_captured)
                     energy_diff_df = pd.concat([energy_diff_df, pd.DataFrame([[energy_diff]], index=[metric])], axis=0)
         #             print(energy_diff)
@@ -70,8 +115,13 @@ def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup):
             new_metric = energy_diff_df.sort_values(0).index[0]
             metrics = metrics + [new_metric]
             candidates.remove(new_metric)
-        metrics_list.append(metrics)
+        df_result.loc[metric_of_interest,metrics] = 1
         print(metrics)
+        
+    metrics_list =[]
+    for i in range(num_k):
+        a = ((df_result.iloc[i,:]==1) & (df_result.iloc[:,i]==1))
+        metrics_list.append(a.index[a].values.tolist())
 
     return metrics_list
 
@@ -101,44 +151,6 @@ def getWeitghts(target, donor, metrics_list, expSetup, method = "mean"):
 			raise ValueError("invalid method")
 	return weights_list
 
-# def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup):
-# 	target_data = target.concat(allMetrics, pred_year, pred_length=1)
-
-# 	num_k = len(allMetrics)
-# 	total_index = int(target_data.shape[1] / num_k)
-# 	mat_form_method = expSetup[0]
-
-# 	metrics_list = []
-# 	for metric_of_interest in allMetrics:
-# 	    df = donor.concat([metric_of_interest], 2016, total_index, method = mat_form_method)
-# 	    apprx_rank = utils.approximate_rank(df, t = 0.97)
-# 	    energy_captured = utils.svdAanlysis(df, title=metric_of_interest, verbose = False)[apprx_rank-1]
-
-# 	    metrics = [metric_of_interest]
-# 	    candidates = copy.deepcopy(allMetrics)
-# 	    candidates.remove(metric_of_interest)
-
-# 	    while True:
-# 	        energy_diff_df = pd.DataFrame()
-# 	        for metric in candidates:
-# 	            comb = metrics+[metric]
-# 	            df = donor.concat(comb, 2016, total_index, method = mat_form_method)
-
-# 	            if (utils.approximate_rank(df, t = 0.97) == apprx_rank):
-
-# 	                energy_diff = np.abs(utils.svdAanlysis(df, k=apprx_rank, verbose=False)[-1] - energy_captured)
-# 	                energy_diff_df = pd.concat([energy_diff_df, pd.DataFrame([[energy_diff]], index=[metric])], axis=0)
-# 	    #             print(energy_diff)
-# 	        if (energy_diff_df.shape[0] == 0):
-# 	            break
-# 	        new_metric = energy_diff_df.sort_values(0).index[0]
-# 	        metrics = metrics + [new_metric]
-# 	        candidates.remove(new_metric)
-# 	    metrics_list.append(metrics)
-# 	    print(metrics)
-
-# 	return metrics_list
-# test for a multiple time series imputation and forecasting
 def test():
 	"""
 	import data
@@ -206,7 +218,7 @@ def test():
 		target = Target(playerName, allPivotedTableDict, df_year)
 		donor = Donor(allPivotedTableDict, df_year)
 
-		metrics_list = getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup)
+		metrics_list = getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, boundary="threshold")
 		weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
 
 		mrsc = mRSC(donor, target, probObservation=1)
