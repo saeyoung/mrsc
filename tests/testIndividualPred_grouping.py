@@ -122,7 +122,6 @@ def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, bounda
 		a = ((df_result.iloc[i,:]==1) & (df_result.iloc[:,i]==1))
 		metrics_list.append(a.index[a].values.tolist())
 
-	print(metrics_list)
 	return metrics_list
 
 def getWeitghts(target, donor, metrics_list, expSetup, method = "mean"):   
@@ -221,6 +220,8 @@ def test():
 		metrics_list = getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, boundary="threshold")
 		weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
 
+		print(metrics_list)
+		
 		mrsc = mRSC(donor, target, probObservation=1)
 
 		player_pred = pd.DataFrame()
@@ -232,6 +233,11 @@ def test():
 		    true = mrsc.getTrue()
 		    pred.columns = [playerName]
 		    true.columns = [playerName]
+
+		    print("pred")
+		    print(pred)
+		    print("true")
+		    print(true)
 
 		    player_pred = pd.concat([player_pred, pred.loc[allMetrics[i],:]], axis=0)
 		    player_true = pd.concat([player_true, pred.loc[allMetrics[i],:]], axis=0)
