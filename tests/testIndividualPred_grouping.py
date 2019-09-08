@@ -214,6 +214,7 @@ def test():
 	true_all = pd.DataFrame()
 	for playerName in activePlayers:
 		print()
+		print("***********", playerName , "************")
 		target = Target(playerName, allPivotedTableDict, df_year)
 		donor = Donor(allPivotedTableDict, df_year)
 
@@ -221,7 +222,7 @@ def test():
 		weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
 
 		print(metrics_list)
-		
+
 		mrsc = mRSC(donor, target, probObservation=1)
 
 		player_pred = pd.DataFrame()
@@ -241,6 +242,8 @@ def test():
 
 		    player_pred = pd.concat([player_pred, pred.loc[allMetrics[i],:]], axis=0)
 		    player_true = pd.concat([player_true, pred.loc[allMetrics[i],:]], axis=0)
+
+		print(player_pred)
 
 		pred_all = pd.concat([pred_all, player_pred], axis=1)
 		true_all = pd.concat([true_all, player_true], axis=1)
