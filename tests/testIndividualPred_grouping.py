@@ -212,34 +212,35 @@ def test():
 	print("* start experiment")
 	pred_all = pd.DataFrame()
 	true_all = pd.DataFrame()
+	for playerName in activePlayers:
+		print()
+		print("***********", playerName , "************")
+		target = Target(playerName, allPivotedTableDict, df_year)
+		donor = Donor(allPivotedTableDict, df_year)
 
-	# for playerName in activePlayers[:2]:
-	playerName = activePlayers[2]
+		metrics_list = getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, boundary="threshold")
+		weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
 
-	target = Target(playerName, allPivotedTableDict, df_year)
-	donor = Donor(allPivotedTableDict, df_year)
+		print(metrics_list)
 
-	metrics_list = getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup)
-	weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
+		mrsc = mRSC(donor, target, probObservation=1)
 
-	mrsc = mRSC(donor, target, probObservation=1)
+		player_pred = pd.DataFrame()
+		player_true = pd.DataFrame()
+		for i in range(len(metrics_list)):
+		    mrsc.fit_threshold(metrics_list[i], weights_list[i], pred_year, pred_length = 1, threshold = threshold, setup = expSetup)
 
-	player_pred = pd.DataFrame()
-	player_true = pd.DataFrame()
-	for i in range(len(metrics_list)):
-	    mrsc.fit_threshold(metrics_list[i], weights_list[i], pred_year, pred_length = 1, threshold = threshold, setup = expSetup)
+		    pred = mrsc.predict()
+		    true = mrsc.getTrue()
+		    pred.columns = [playerName]
+		    true.columns = [playerName]
+		    
+		    c = metrics_list[i].index(allMetrics[i])
+		    player_pred = pd.concat([player_pred, pred.iloc[c:(c+1),:]], axis=0)
+		    player_true = pd.concat([player_true, true.iloc[c:(c+1),:]], axis=0)
 
-	    pred = mrsc.predict()
-	    true = mrsc.getTrue()
-	    pred.columns = [playerName]
-	    true.columns = [playerName]
-	    
-	    c = metrics_list[i].index(allMetrics[i])
-	    player_pred = pd.concat([player_pred, pred.iloc[c:(c+1),:]], axis=0)
-	    player_true = pd.concat([player_true, pred.iloc[c:(c+1),:]], axis=0)
-
-	pred_all = pd.concat([pred_all, player_pred], axis=1)
-	true_all = pd.concat([true_all, player_true], axis=1)
+		pred_all = pd.concat([pred_all, player_pred], axis=1)
+		true_all = pd.concat([true_all, player_true], axis=1)
 
 	###################
 	mask = (true_all !=0 )
