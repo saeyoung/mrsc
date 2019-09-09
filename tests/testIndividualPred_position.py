@@ -90,6 +90,18 @@ def getWeitghts(target, donor, metrics_list, expSetup, method = "mean"):
             raise ValueError("invalid method")
     return weights_list
 
+def filterDonor(pivotedTableDict, player_list):
+    """
+    pivotedTableDict: (dict) a dictionary of pivoted df's = {metric: df}
+    player_list: (list) list of the name of the players you want to include in the donor pool
+    """
+    dict_to_return = {}
+    keys = pivotedTableDict.keys()
+    for key in keys:
+        index_to_choose = pivotedTableDict[key].index.isin(player_list)
+        dict_to_return.update({key:pivotedTableDict[key][index_to_choose]})
+    return dict_to_return
+
 # test for a multiple time series imputation and forecasting
 def test():
     """
@@ -162,22 +174,28 @@ def test():
     true_all = pd.DataFrame()
     for playerName in activePlayers:
         playerPos = stats.loc[(stats.Player == playerName) & (stats.Year == pred_year), "Pos"].values[-1]    
-        print(playerPos)
+        # print(playerPos)
 
         if playerPos in group1:
-            plyers_in_group = stats[stats.Pos.isin(group1)].Player.unique()
-            print("group 1")
+            players_in_group = stats[stats.Pos.isin(group1)].Player.unique()
+            # print("group 1")
         elif playerPos in group2:
-            plyers_in_group = stats[stats.Pos.isin(group2)].Player.unique()
-            print("group 2")
+            players_in_group = stats[stats.Pos.isin(group2)].Player.unique()
+            # print("group 2")
         elif playerPos in group3:
-            plyers_in_group = stats[stats.Pos.isin(group2)].Player.unique()
-            print("group 3")
+            players_in_group = stats[stats.Pos.isin(group2)].Player.unique()
+            # print("group 3")
         else:
             raise Exception("invalid position")
 
+        donorPivotedTableDict = filterDonor(allPivotedTableDict, players_in_group)
+
         target = Target(playerName, allPivotedTableDict, df_year)
-        donor = Donor(allPivotedTableDict, df_year)
+        donor = Donor(donorPivotedTableDict, df_year)
+
+        # print("***sanitary check***")
+        # print("players_in_group: ", len(players_in_group))
+        # print("donor pool size for PTS_G", donorPivotedTableDict["PTS_G"].shape)
 
         weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
         
@@ -213,10 +231,10 @@ def test():
     # print(rmse)
     # print("RMSE for all: ", rmse.mean())
 
-    weirdo = mape.T[mape.T.PTS_G > 100].T
-    print()
-    print(weirdo)
-    print(weirdo.shape)
+    # weirdo = mape.T[mape.T.PTS_G > 100].T
+    # print()
+    # print(weirdo)
+    # print(weirdo.shape)
 
 def main():
     print("*******************************************************")
