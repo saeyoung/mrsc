@@ -114,10 +114,10 @@ def test():
     print("* preparing data")
     # transform stats to a dictionary composed of df's for each stat
     # the stats are re-calculated to get one stat for each year
-    metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK"]
+    metricsPerGameColNames = ["PTS","AST","TOV","TRB","STL","BLK","3P"]
     metricsPerGameDict = getMetricsPerGameDict(stats, metricsPerGameColNames)
 
-    metricsPerCentColNames = ["FG","FT","3P"]
+    metricsPerCentColNames = ["FG","FT"]
     metricsPerCentDict = getMetricsPerCentDict(stats, metricsPerCentColNames)
 
     metricsWeightedColNames = ["PER"]
@@ -138,10 +138,13 @@ def test():
     activePlayers.remove("Kevin Garnett")
     activePlayers.remove("Kobe Bryant")
 
-    offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P%"]
-    defMetrics = ["TRB_G","STL_G","BLK_G"]
-    metrics_list = [offMetrics, defMetrics]
-    
+    metrics1 = ["PTS_G","PER_w"]
+    metrics2 = ["3P_G","FG%","FT%"]
+    metrics3 = ["TOV_G"]
+    metrics4 = ["TRB_G","STL_G"]
+    metrics5 = ["AST_G","BLK_G"]
+    metrics_list = [metrics1, metrics2, metrics3, metrics4, metrics5]
+    print(metrics_list)
     #### uniform weights
     # weightsOff = [1.,1.,1.,1.,1.,1.,1.]
     # weightsDef = [1.,1.,1.]
@@ -149,10 +152,30 @@ def test():
     expSetup = ["sliding", "SVD", "all", "pinv", False]
     threshold = 0.97
 
+    #### position groups
+    group1 = ["C", "SF","PF", "C-PF", "PF-C", "C-SF", "SF-C", "SF-PF", "PF-SF"]
+    group2 = ["SG","SF","PG", "SG-SF", "SF-SG", "SF-PG", "PG-SF", "SG-PG", "PG-SF"]
+    group3 = ["SG","SF","PF", "SG-SF", "SF-SG", "SF-PF", "PF-SF", "SG-PF", "PF-SG"]
+
     print("* start experiment")
     pred_all = pd.DataFrame()
     true_all = pd.DataFrame()
     for playerName in activePlayers:
+        playerPos = stats.loc[(stats.Player == playerName) & (stats.Year == pred_year), "Pos"].values[-1]    
+        print(playerPos)
+
+        if playerPos in group1:
+            plyers_in_group = stats[stats.Pos.isin(group1)].Player.unique()
+            print("group 1")
+        elif playerPos in group2:
+            plyers_in_group = stats[stats.Pos.isin(group2)].Player.unique()
+            print("group 2")
+        elif playerPos in group3:
+            plyers_in_group = stats[stats.Pos.isin(group2)].Player.unique()
+            print("group 3")
+        else:
+            raise Exception("invalid position")
+
         target = Target(playerName, allPivotedTableDict, df_year)
         donor = Donor(allPivotedTableDict, df_year)
 
@@ -180,13 +203,15 @@ def test():
     mask = (true_all !=0 )
     mape = np.abs(pred_all - true_all) / true_all[mask]
     print()
+    print("******* MAPE *******")
     print(mape.mean(axis=1))
     print("MAPE for all: ", mape.mean().mean())
 
-    rmse = utils.rmse_2d(true_all, pred_all)
-    print()
-    print(rmse)
-    print("RMSE for all: ", rmse.mean())
+    # rmse = utils.rmse_2d(true_all, pred_all)
+    # print()
+    # print("******* RMSE *******")
+    # print(rmse)
+    # print("RMSE for all: ", rmse.mean())
 
     weirdo = mape.T[mape.T.PTS_G > 100].T
     print()
