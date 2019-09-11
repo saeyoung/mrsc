@@ -13,11 +13,12 @@ class Donor:
         """
         data: (dict) dictionary of {metric : df}
         years: (df) cols = year_count, index = keys, values = calendar year
+        keys: (list) player name
         """
         self.data = data
         self.years = years
         
-        self.kyes = years.index
+        self.keys = years.index
         
     def slidingWindow(self, df, window, p=0, sort_index = False, save=False):
         """
