@@ -41,7 +41,7 @@ class Target:
         metrics: (list) metrics you want to use
         pred_year: (int) the year you want to make a prediction
         
-        output: (df) concatenated df for your metrics of choice, up until (and including) the prediction year
+        output: (dict) dict of df for your metrics of choice, up until (and including) the prediction year, {metric: df}
         """
         max_index = pred_year - self.start_calendar_year + pred_length
         dict_return = {}
