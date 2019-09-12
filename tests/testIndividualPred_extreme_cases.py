@@ -8,9 +8,11 @@ sys.path.append("../..")
 sys.path.append("..")
 sys.path.append(os.getcwd())
 
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import copy
+import pickle
 
 from mrsc.src.model.SVDmodel import SVDmodel
 from mrsc.src.model.Target import Target
@@ -63,7 +65,6 @@ def removeDuplicated(players, stats):
     stats_not_duplicated["year_count"] = stats_not_duplicated.Year - stats_not_duplicated.year_start
 
     return stats_not_duplicated
-
 
 def getWeitghts(target, donor, metrics_list, expSetup, method = "mean"):   
     # get mat_form_method
@@ -126,6 +127,7 @@ def test():
 
     allMetricsDict = {**metricsPerGameDict, **metricsPerCentDict, **metricsWeightedDict}
     allPivotedTableDict = getPivotedTableDict(allMetricsDict)
+    allMetrics = list(allMetricsDict.keys())
 
     # this matrix will be used to mask the table
     df_year = pd.pivot_table(stats, values="Year", index="Player", columns = "year_count")
@@ -138,78 +140,99 @@ def test():
     activePlayers.remove("Kevin Garnett")
     activePlayers.remove("Kobe Bryant")
 
-    offMetrics = ["PTS_G","AST_G","TOV_G","3P_G","PER_w", "FG%","FT%"]
-    defMetrics = ["TRB_G","STL_G","BLK_G"]
-    
-    #### uniform weights
-    # weightsOff = [1.,1.,1.,1.,1.,1.,1.]
-    # weightsDef = [1.,1.,1.]
-
-    #### mean-standardized weights
-    # weightsOff = [0.12623068620631453, 0.55687314142618904, 0.82115849366536209, 0.080245455622805287, 2.2838580004246301, 1.4304474472757014, 4.7552939398878413]
-    # weightsDef = [0.28744431242409424, 1.5323016513327052, 2.4985245915220626]
-
-    #### variance-standardized weights (1/(x+1))
-
-    metrics_list = [offMetrics, defMetrics]
-
+    # offMetrics = ["PTS_G","AST_G","TOV_G","3P_G","PER_w", "FG%","FT%"]
+    # defMetrics = ["TRB_G","STL_G","BLK_G"]
     expSetup = ["sliding", "SVD", "all", "pinv", False]
     threshold = 0.97
+    metrics_to_use = ["PTS_G","AST_G","TOV_G","3P_G","PER_w", "FG%","FT%","TRB_G","STL_G","BLK_G"]
 
     print("* start experiment")
+
+    print("*******************")
+    print("one at once, 10 models in total")
     pred_all = pd.DataFrame()
     true_all = pd.DataFrame()
     for playerName in activePlayers:
         target = Target(playerName, allPivotedTableDict, df_year)
         donor = Donor(allPivotedTableDict, df_year)
-        weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="mean")
 
         mrsc = mRSC(donor, target, probObservation=1)
-        mrsc.fit_threshold(offMetrics, weights_list[0], 2016, pred_length = 1, threshold = threshold, setup = expSetup)
-      
-        predOff = mrsc.predict()
-        trueOff = mrsc.getTrue()
-        predOff.columns = [playerName]
-        trueOff.columns = [playerName]
 
-        mrsc.fit_threshold(defMetrics, weights_list[1], 2016, pred_length = 1, threshold = threshold, setup = expSetup)
-        predDef = mrsc.predict()
-        trueDef = mrsc.getTrue()
-        predDef.columns = [playerName]
-        trueDef.columns = [playerName]
+        player_pred = pd.DataFrame()
+        player_true = pd.DataFrame()
+        for metric in metrics_to_use:
+            mrsc.fit_threshold([metric], [1.], 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+          
+            pred = mrsc.predict()
+            true = mrsc.getTrue()
+            pred.columns = [playerName]
+            true.columns = [playerName]
+            
+            player_pred = pd.concat([player_pred, pred], axis=0)
+            player_true = pd.concat([player_true, true], axis=0)
         
-        pred = pd.concat([predOff, predDef], axis=0)
-        true = pd.concat([trueOff, trueDef], axis=0)
+        pred_all = pd.concat([pred_all, player_pred], axis=1)
+        true_all = pd.concat([true_all, player_true], axis=1)
 
-        pred_all = pd.concat([pred_all, pred], axis=1)
-        true_all = pd.concat([true_all, true], axis=1)
+    with open('pred_all.pkl', 'wb') as f:
+        pickle.dump(pred_all, f, pickle.HIGHEST_PROTOCOL)
+    with open('true_all.pkl', 'wb') as f:
+        pickle.dump(true_all, f, pickle.HIGHEST_PROTOCOL)
 
-###################
+    print()
+    print("*** MAPE ***")
     mask = (true_all !=0 )
     mape = np.abs(pred_all - true_all) / true_all[mask]
-    print()
     print(mape.mean(axis=1))
     print("MAPE for all: ", mape.mean().mean())
-
     rmse = utils.rmse_2d(true_all, pred_all)
     print()
+    print("*** RMSE ***")
     print(rmse)
     print("RMSE for all: ", rmse.mean())
 
-    weirdo = mape.T[mape.T.PTS_G > 100].T
-    print()
-    print(weirdo)
-    print(weirdo.shape)
+    # print("*******************")
+    # print("all at once, var - standardized weights")
+    # metrics_list = [metrics_to_use]
+    # weights = getWeitghts(target, donor, metrics_list, expSetup, method="var")[0]
+
+    # pred_all = pd.DataFrame()
+    # true_all = pd.DataFrame()
+    # for playerName in activePlayers:
+    #     target = Target(playerName, allPivotedTableDict, df_year)
+    #     donor = Donor(allPivotedTableDict, df_year)
+
+    #     mrsc = mRSC(donor, target, probObservation=1)
+    #     mrsc.fit_threshold(metrics_to_use, weights, 2016, pred_length = 1, threshold = threshold, setup = expSetup)
+      
+    #     pred = mrsc.predict()
+    #     true = mrsc.getTrue()
+    #     pred.columns = [playerName]
+    #     true.columns = [playerName]
+        
+    #     pred_all = pd.concat([pred_all, pred], axis=1)
+    #     true_all = pd.concat([true_all, true], axis=1)
+    # print()
+    # print("*** MAPE ***")
+    # mask = (true_all !=0 )
+    # mape = np.abs(pred_all - true_all) / true_all[mask]
+    # print(mape.mean(axis=1))
+    # print("MAPE for all: ", mape.mean().mean())
+    # rmse = utils.rmse_2d(true_all, pred_all)
+    # print()
+    # print("*** RMSE ***")
+    # print(rmse)
+    # print("RMSE for all: ", rmse.mean())
+
+
 
 def main():
     print("*******************************************************")
     print("*******************************************************")
     print("********** Running the Testing Scripts. ***************")
-    print()
 
     test()
 
-    print()
     print("********** Testing Scripts Done. **********************")
     print("*******************************************************")
     print("*******************************************************")

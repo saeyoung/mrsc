@@ -217,16 +217,16 @@ def test():
 	with open('metrics_all.pkl', 'wb') as f:
 		pickle.dump(metrics_all, f, pickle.HIGHEST_PROTOCOL)
 	for playerName in activePlayers:
-		print()
-		print("***********", playerName , "************")
+		# print()
+		# print("***********", playerName , "************")
 		target = Target(playerName, allPivotedTableDict, df_year)
 		donor = Donor(allPivotedTableDict, df_year)
 
 		metrics_list = getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, boundary="threshold")
-		weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="var")
+		weights_list = getWeitghts(target, donor, metrics_list, expSetup, method="mean")
 
 		metrics_all.append(metrics_list)
-		print(metrics_list)
+		# print(metrics_list)
 
 		mrsc = mRSC(donor, target, probObservation=1)
 
@@ -249,7 +249,7 @@ def test():
 
 		mask = (true_all !=0 )
 		mape = np.abs(pred_all - true_all) / true_all[mask]
-		print(mape.mean(axis=1))
+		# print(mape.mean(axis=1))
 
 	###################
 	print("******** RESULT ********")
