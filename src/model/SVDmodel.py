@@ -13,40 +13,37 @@ from sklearn import linear_model
 import mrsc.src.utils as utils
 
 class SVDmodel:
-    def __init__(self, weights, singvals, target_data, donor_data, interv_index, total_index, setup, probObservation):
+    def __init__(self, num_k, singvals, target_data, donor_data, interv_index, total_index, denoise_mat_method = "all", regression_method = "pinv", skipNan = True, probObservation = 1.):
         """
         setup = [mat_form_method, denoise_method, denoise_mat_method, regression_method, skipNan]
         """
-        self.weights = weights
         self.singvals = singvals
         self.target_data = copy.deepcopy(target_data)
         self.donor_data = copy.deepcopy(donor_data)
-        self.num_k = len(weights)
+        self.num_k = num_k
         self.interv_index = interv_index
         self.total_index = total_index
         
         self.denoise_method = "SVD"
-        self.denoise_mat_method = setup[2] # denoise_mat_method
-        self.regression_method = setup[3] #regression_method
-        self.skipNan = setup[4] # skipNan
+        self.denoise_mat_method = denoise_mat_method
+        self.regression_method = regression_method
+        self.skipNan = skipNan
         
         self.p = probObservation
         
-        self.w_matrix = None
-        self.inv_w_matrix = None
         self.donor_pre = None
         self.target_pre = None
         self.beta = None
 
-    def get_diagonal(self, weights, T):
-        k = len(weights)
-        diag_matrix = np.zeros((k*T, k*T))
-        i = 0
-        for weight in weights:
-            rng = np.arange(i, i+T)
-            diag_matrix[rng, rng] = weight
-            i += T
-        return diag_matrix
+    # def get_diagonal(self, weights, T):
+    #     k = len(weights)
+    #     diag_matrix = np.zeros((k*T, k*T))
+    #     i = 0
+    #     for weight in weights:
+    #         rng = np.arange(i, i+T)
+    #         diag_matrix[rng, rng] = weight
+    #         i += T
+    #     return diag_matrix
         
     def hsvt(self, df, rank): 
         """
@@ -77,12 +74,6 @@ class SVDmodel:
             else:
                 self.donor_data = utils.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k, reindex = True)
 
-        # apply weights
-        self.w_matrix = self.get_diagonal(self.weights, self.total_index)
-        self.inv_w_matrix = np.diag(1 / np.diag(self.w_matrix))
-        self.target_data = self.target_data.dot(self.w_matrix)
-        self.donor_data = self.donor_data.dot(self.w_matrix)
-
         # get self.donor_pre
         if (self.denoise_mat_method == "all"):
             df_hsvt = self.hsvt(self.donor_data, self.singvals)
@@ -95,13 +86,29 @@ class SVDmodel:
             
         self.target_pre = utils.get_preint_data(self.target_data, self.interv_index, self.total_index, self.num_k)
 
-    def fit(self):
+    def fit(self, verbose = False):
         self._prepare()
+        # print(self.total_index)
+        # print(self.interv_index)
+        # print(self.target_data.shape)
+        # print(self.target_data)
+        # print(self.target_pre)
+        # print(self.donor_pre)
 
         # regression
         if (self.regression_method == 'pinv'):
             self.beta = np.linalg.lstsq(self.donor_pre.T, self.target_pre.T, rcond=None)[0]
             # self.beta = np.linalg.pinv(self.donor_pre.T, rcond=1.0000000000000001e-14).dot(self.target_pre.T)
+            if (verbose == True):
+                print("##########################################")
+                print("*** target size: ", self.target_pre.shape)
+                print(self.target_pre)
+                print("##########################################")
+                print("*** donor size : ",  self.donor_pre.shape)
+                print(self.donor_pre)
+                print("##########################################")
+                print("*** beta size  : ",  self.beta.shape)
+                print(self.beta)
 
         elif (self.regression_method == 'lr'):
             regr = linear_model.LinearRegression(fit_intercept=True)
@@ -118,8 +125,6 @@ class SVDmodel:
         else:
             raise ValueError("Invalid regression method. Should be 'lr' or 'pinv' or 'lasso'.")
 
-        self.target_data = self.target_data.dot(self.inv_w_matrix)
-        self.donor_data = self.donor_data.dot(self.inv_w_matrix)
         # print()
         # print(self.beta)
 ########################################################

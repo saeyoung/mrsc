@@ -9,16 +9,13 @@ import random
 import copy
 
 class Donor:
-    def __init__(self, data, years):
+    def __init__(self, data):
         """
         data: (dict) dictionary of {metric : df}
-        years: (df) cols = year_count, index = keys, values = calendar year
         keys: (list) player name
         """
-        self.data = data
-        self.years = years
-        
-        self.keys = years.index
+        self.data = data        
+        self.keys = list(data.values())[0].index
         
     def slidingWindow(self, df, window, p=0, sort_index = False, save=False):
         """
@@ -44,6 +41,7 @@ class Donor:
         window = (int) sliding window size
         p = (float, 0<=p<=1) fraction of NaN's allowed in each row
         """
+
         df_final = df.iloc[:,:window]
         df_final = df_final[np.isnan(df_final).sum(axis=1)/window <= p]
         if (sort_index):
@@ -52,23 +50,34 @@ class Donor:
             df_final.to_pickle("../data/nba-players-stats/fixed_window_{}_{}.pkl".format(window,metric))
         return df_final
     
-    def concat(self, metrics, pred_year, window, method = "sliding"):
+    def concat(self, metrics, total_index, method = "fixed", skipNan = True, nan_index = None):
         """
         metrics: (list) metrics you want to use
-        pred_year: (int) the year you want to make a prediction
-        window: (int) window size
+        total_index: (int) window size
+        method: (string) "sliding" or "fixed"
         
         output: concatenated donor matrix
         """
-        mask = self.years < pred_year
         df_concat = pd.DataFrame()
+        window = total_index
+        if (skipNan == False) & (len(nan_index) !=0):
+            window = window + len(nan_index)
+            index_to_keep = [n for n in range(window) if n not in nan_index]
+            # print("@%&)!@#$*)@#*$)!@#", index_to_keep)
         for metric in metrics:
-            df_valid = self.data[metric][mask]
             if (method == "sliding"):
-                df_concat = pd.concat([df_concat, self.slidingWindow(df_valid, window)], axis=1)
+                df_metric = self.slidingWindow(self.data[metric], window)
             elif (method == "fixed"):
-                df_concat = pd.concat([df_concat, self.fixedWindow(df_valid, window)], axis=1)
-        df_concat.columns = range(df_concat.shape[1])
+                df_metric = self.fixedWindow(self.data[metric], window)
+            else:
+                raise Exception("Invalid method - donor construction method sould be 'sliding' or 'fixed'.")
+            
+            if (skipNan == False) & (len(nan_index) !=0):
+                df_metric = df_metric.iloc[:,index_to_keep]
+
+            df_concat = pd.concat([df_concat, df_metric], axis=1)
+        df_concat.columns = range(df_concat.shape[1]) #reindex
+
         return df_concat
 
     def dict(self, metrics, pred_year, window, method = "sliding"):
