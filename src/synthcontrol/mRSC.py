@@ -73,10 +73,10 @@ class mRSC:
         # only use donor_data to get mean and var
     def normalize_col(self, mean_list, var_list):
         self.weights = [mean_list, var_list]
-        self.donor_data = (self.donor_data - mean_list)/np.sqrt(var_list)
-        self.target_data = (self.target_data - mean_list)/np.sqrt(var_list)
-        # self.donor_data = self.donor_data/np.sqrt(var_list)
-        # self.target_data = self.target_data/np.sqrt(var_list)
+        # self.donor_data = (self.donor_data - mean_list)/np.sqrt(var_list)
+        # self.target_data = (self.target_data - mean_list)/np.sqrt(var_list)
+        self.donor_data = self.donor_data/np.sqrt(var_list)
+        self.target_data = self.target_data/np.sqrt(var_list)
 
     def apply_weights(self):
         if (self.weighting == "normalize"):
@@ -101,8 +101,10 @@ class mRSC:
     def remove_wiehgts(self):
         mean_list = self.weights[0]
         var_list = self.weights[1]
-        self.donor_data = (self.donor_data * np.sqrt(var_list)) +  mean_list
-        self.target_data = (self.target_data * np.sqrt(var_list)) + mean_list
+        # self.donor_data = (self.donor_data * np.sqrt(var_list)) +  mean_list
+        # self.target_data = (self.target_data * np.sqrt(var_list)) + mean_list
+        self.donor_data = (self.donor_data * np.sqrt(var_list))
+        self.target_data = (self.target_data * np.sqrt(var_list))
 
     def _assignData(self, metrics, pred_interval=1, weighting="normalize", mat_form_method = "fixed", skipNan = True):
         self.metrics = metrics
@@ -219,7 +221,9 @@ class mRSC:
             # print(mean_post)
             # print("var:  ")
             # print(var_post)
-            pred = (pred * np.sqrt(var_post.T.values))+ mean_post.T.values
+            # pred = (pred * np.sqrt(var_post.T.values))+ mean_post.T.values
+            pred = (pred * np.sqrt(var_post.T.values))
+
 
         pred = pred.flatten()
         df_return = pd.DataFrame(index = self.metrics, columns = range(self.pred_interval))
