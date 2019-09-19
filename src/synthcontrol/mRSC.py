@@ -71,32 +71,38 @@ class mRSC:
 
         # normalize the columns of donor_data and target_data
         # only use donor_data to get mean and var
-    def normalize_col(self):
-        mean_list = self.donor_data.mean(axis=0)
-        var_list = self.donor_data.var(axis=0)
+    def normalize_col(self, mean_list, var_list):
         self.weights = [mean_list, var_list]
         self.donor_data = (self.donor_data - mean_list)/np.sqrt(var_list)
         self.target_data = (self.target_data - mean_list)/np.sqrt(var_list)
         # self.donor_data = self.donor_data/np.sqrt(var_list)
         # self.target_data = self.target_data/np.sqrt(var_list)
 
-    # # work in progress!!
-    # def normalize_batch(self):
-    #     mean_list = []
-    #     var_list = []
+    def apply_weights(self):
+        if (self.weighting == "normalize"):
+            mean_list = self.donor_data.mean(axis=0)
+            var_list = self.donor_data.var(axis=0)
+            self.normalize_col(mean_list, var_list)
 
-    #     donor_data
-    #     target_data
-    #     for k in range(num_k):
-    #         donor_batch = self.donor_data.iloc[:,k*self.total_index:(k+1)*self.total_index]
-    #         mean_list.append(np.mean(donor_batch.values.flatten()))
-    #         var_list.append(np.var(donor_batch.values.flatten()))
-
-    #     self.weights = [mean_list, var_list]
-    #     self.donor_data = (self.donor_data - mean_list)/np.sqrt(var_list)
-    #     self.target_data = (self.target_data - mean_list)/np.sqrt(var_list)
-    #     # self.donor_data = self.donor_data/np.sqrt(var_list)
-    #     # self.target_data = self.target_data/np.sqrt(var_list)
+        elif (self.weighting == "normalize_batch"):
+            mean_list = []
+            var_list = []
+            for k in range(self.num_k):
+                donor_batch = self.donor_data.iloc[:,k*self.total_index:(k+1)*self.total_index]
+                mean = np.mean(donor_batch.values.flatten())
+                var = np.var(donor_batch.values.flatten())
+                mean_list = mean_list + [mean] * self.total_index
+                var_list = var_list + [var] * self.total_index
+            mean_list = pd.Series(mean_list)
+            var_list = pd.Series(var_list)
+            self.normalize_col(mean_list, var_list)
+    
+    # de-normilize the target and donor
+    def remove_wiehgts(self):
+        mean_list = self.weights[0]
+        var_list = self.weights[1]
+        self.donor_data = (self.donor_data * np.sqrt(var_list)) +  mean_list
+        self.target_data = (self.target_data * np.sqrt(var_list)) + mean_list
 
     def _assignData(self, metrics, pred_interval=1, weighting="normalize", mat_form_method = "fixed", skipNan = True):
         self.metrics = metrics
@@ -117,10 +123,8 @@ class mRSC:
         if (self.donor_data.shape[0] < 5):
             raise Exception("Donor pool size too small. Donor pool size: "+ self.target.key +str(self.donor_data.shape))
 
-        if (weighting == "normalize"):
-            self.normalize_col()
-        # if (weighting == "normalize_batch"):
-        #     self.normalize_batch()
+        if (self.weighting != None):
+            self.apply_weights()
 
     def fit_threshold(self, metrics, pred_interval=1, threshold =0.99, donorSetup= [None,"fixed", True] , denoiseSetup = ["SVD", "all"], regression_method = "pinv", verbose = False):
         weighting = donorSetup[0] # None / "normalize"
@@ -163,12 +167,9 @@ class mRSC:
             raise ValueError("Invalid denoise method. Should be 'SVD' or 'ALS'.")
             
         # de-normilize the target and donor
-        if (self.weighting == "normalize"):
-            mean_list = self.weights[0]
-            var_list = self.weights[1]
-            self.donor_data = (self.donor_data * np.sqrt(var_list)) +  mean_list
-            self.target_data = (self.target_data * np.sqrt(var_list)) + mean_list
-        
+        if (self.weighting != None):
+            self.remove_wiehgts()
+
 #     def fit(self, metrics, weights, pred_interval=1, singvals =999, setup = ["fixed", True, "SVD", "all", "pinv"]):
         
 #         if (len(weights) != len(metrics)):
@@ -211,7 +212,7 @@ class mRSC:
         pred = np.dot(donor_post.T, self.model.beta)
 
         # post-treatment to go back to the original status
-        if (self.weighting == "normalize"):
+        if (self.weighting != None):
             mean_post = utils.get_postint_data(combinedDF = self.weights[0].to_frame().T, intervIndex = self.interv_index, totalIndex = self.total_index, nbrMetrics = self.num_k, reindex = True)
             var_post = utils.get_postint_data(combinedDF = self.weights[1].to_frame().T, intervIndex = self.interv_index, totalIndex = self.total_index, nbrMetrics = self.num_k, reindex = True)
             # print("mean: ")

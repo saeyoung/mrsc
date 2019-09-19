@@ -172,7 +172,7 @@ def test():
     experiment setup
     """
     # overall setup
-    donorSetup= ["normalize","sliding", True]
+    donorSetup= ["normalize_batch","sliding", True]
     # weighting = donorSetup[0] # None / "normalize"
     # mat_form_method = donorSetup[1] # "fixed"
     # skipNan = donorSetup[2] # (Boolean)
@@ -221,7 +221,10 @@ def test():
             true.columns = [playerName]
             player_pred = pd.concat([player_pred, pred], axis=0)
             player_true = pd.concat([player_true, true], axis=0)
-        print(player_pred)
+        mask = (player_true !=0 )
+        mape = np.abs(player_pred - player_true) / player_true[mask]
+        print(mape.mean(axis=1))
+        print("MAPE for all: ", mape.mean().mean())
 
     ###################
     print(player_pred)
