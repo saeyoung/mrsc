@@ -73,10 +73,10 @@ class mRSC:
         # only use donor_data to get mean and var
     def normalize_col(self, mean_list, var_list):
         self.weights = [mean_list, var_list]
-        # self.donor_data = (self.donor_data - mean_list)/np.sqrt(var_list)
-        # self.target_data = (self.target_data - mean_list)/np.sqrt(var_list)
-        self.donor_data = self.donor_data/np.sqrt(var_list)
-        self.target_data = self.target_data/np.sqrt(var_list)
+        self.donor_data = (self.donor_data - mean_list)/np.sqrt(var_list)
+        self.target_data = (self.target_data - mean_list)/np.sqrt(var_list)
+        # self.donor_data = self.donor_data/np.sqrt(var_list)
+        # self.target_data = self.target_data/np.sqrt(var_list)
 
     def apply_weights(self):
         if (self.weighting == "normalize"):
@@ -96,23 +96,40 @@ class mRSC:
             mean_list = pd.Series(mean_list)
             var_list = pd.Series(var_list)
             self.normalize_col(mean_list, var_list)
+
+        elif (self.weighting == "variance"):
+            var_list = self.donor_data.var(axis=0)
+            mean_list = pd.Series([0] * self.donor_data.shape[1])
+            self.donor_data = self.donor_data/np.sqrt(var_list)
+            self.target_data = self.target_data/np.sqrt(var_list)
+            self.weights = [mean_list, var_list]
+
+        elif (self.weighting == "variance_batch"):
+            var_list = []
+            for k in range(self.num_k):
+                donor_batch = self.donor_data.iloc[:,k*self.total_index:(k+1)*self.total_index]
+                var = np.var(donor_batch.values.flatten())
+                var_list = var_list + [var] * self.total_index
+            var_list = pd.Series(var_list)
+            mean_list = pd.Series([0] * self.donor_data.shape[1])
+            self.donor_data = self.donor_data/np.sqrt(var_list)
+            self.target_data = self.target_data/np.sqrt(var_list)
+            self.weights = [mean_list, var_list]
     
     # de-normilize the target and donor
-    def remove_wiehgts(self):
+    def remove_weights(self):
         mean_list = self.weights[0]
         var_list = self.weights[1]
-        # self.donor_data = (self.donor_data * np.sqrt(var_list)) +  mean_list
-        # self.target_data = (self.target_data * np.sqrt(var_list)) + mean_list
-        self.donor_data = (self.donor_data * np.sqrt(var_list))
-        self.target_data = (self.target_data * np.sqrt(var_list))
-
-    def _assignData(self, metrics, pred_interval=1, weighting="normalize", mat_form_method = "fixed", skipNan = True):
+        self.donor_data = (self.donor_data * np.sqrt(var_list)) +  mean_list
+        self.target_data = (self.target_data * np.sqrt(var_list)) + mean_list
+        # self.donor_data = (self.donor_data * np.sqrt(var_list))
+        # self.target_data = (self.target_data * np.sqrt(var_list))
+        
+    # todo: remove pred_interval
+    def _assignData(self, metrics, weighting="normalize", mat_form_method = "fixed", skipNan = True):
         self.metrics = metrics
         self.num_k = len(self.metrics)
         self.weighting = weighting
-
-        self.pred_interval = pred_interval
-        self.total_index = self.interv_index + self.pred_interval
         
         self.mat_form_method = mat_form_method
         self.skipNan = skipNan
@@ -128,7 +145,8 @@ class mRSC:
         if (self.weighting != None):
             self.apply_weights()
 
-    def fit_threshold(self, metrics, pred_interval=1, threshold =0.99, donorSetup= [None,"fixed", True] , denoiseSetup = ["SVD", "all"], regression_method = "pinv", verbose = False):
+    # todo: remove pred_interval
+    def fit_threshold(self, metrics, threshold =0.99, donorSetup= [None,"fixed", True] , denoiseSetup = ["SVD", "all"], regression_method = "pinv", verbose = False):
         weighting = donorSetup[0] # None / "normalize"
         mat_form_method = donorSetup[1] # "fixed"
         skipNan = donorSetup[2] # (Boolean)
@@ -146,7 +164,7 @@ class mRSC:
                             False if we keep the target's nan and construct donor matrix,
                                   and then remove the NaN columns after.
         """
-        self._assignData(metrics, pred_interval, weighting, mat_form_method, skipNan)
+        self._assignData(metrics, weighting, mat_form_method, skipNan)
         
         # compute approximate rank
         if (denoise_mat_method == "all"):
@@ -170,7 +188,7 @@ class mRSC:
             
         # de-normilize the target and donor
         if (self.weighting != None):
-            self.remove_wiehgts()
+            self.remove_weights()
 
 #     def fit(self, metrics, weights, pred_interval=1, singvals =999, setup = ["fixed", True, "SVD", "all", "pinv"]):
         
@@ -221,8 +239,8 @@ class mRSC:
             # print(mean_post)
             # print("var:  ")
             # print(var_post)
-            # pred = (pred * np.sqrt(var_post.T.values))+ mean_post.T.values
-            pred = (pred * np.sqrt(var_post.T.values))
+            pred = (pred * np.sqrt(var_post.T.values))+ mean_post.T.values
+            # pred = (pred * np.sqrt(var_post.T.values))
 
 
         pred = pred.flatten()

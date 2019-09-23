@@ -53,80 +53,54 @@ def topPlayers(stats, year, metric, n):
     stats_sorted = stats[stats.Year == year].sort_values(metric, ascending = False).reset_index(drop=True)
     return stats_sorted[["Player","player_id"]][:n]
 
-def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, boundary = "threshold"):
-    target_data = target.concat(allMetrics, pred_year, pred_length=1)
+# def getMetrics(target, donor, pred_year, allMetrics, threshold, expSetup, boundary = "threshold"):
+#     target_data = target.concat(allMetrics)
 
-    num_k = len(allMetrics)
-    total_index = int(target_data.shape[1] / num_k)
-    mat_form_method = expSetup[0]
+#     num_k = len(allMetrics)
+#     total_index = int(target_data.shape[1] / num_k)
+#     mat_form_method = expSetup[0]
     
-    df_result = pd.DataFrame(0, columns = allMetrics, index = allMetrics)
-    for metric_of_interest in allMetrics:
-        df = donor.concat([metric_of_interest], 2016, total_index, method = mat_form_method)
-        apprx_rank = utils.approximate_rank(df, t = threshold)
-        energy_captured = utils.svdAanlysis(df, title=metric_of_interest, k=apprx_rank, verbose = False)[apprx_rank-1]
+#     df_result = pd.DataFrame(0, columns = allMetrics, index = allMetrics)
+#     for metric_of_interest in allMetrics:
+#         df = donor.concat([metric_of_interest], 2016, total_index, method = mat_form_method)
+#         apprx_rank = utils.approximate_rank(df, t = threshold)
+#         energy_captured = utils.svdAanlysis(df, title=metric_of_interest, k=apprx_rank, verbose = False)[apprx_rank-1]
 
-        if (boundary == "threshold"):
-            b = threshold
-        elif (boundary == "energy"):
-            b = energy_captured
-        else:
-            raise Exception("wrong parameter")
+#         if (boundary == "threshold"):
+#             b = threshold
+#         elif (boundary == "energy"):
+#             b = energy_captured
+#         else:
+#             raise Exception("wrong parameter")
 
-        metrics = [metric_of_interest]
-        candidates = copy.deepcopy(allMetrics)
-        candidates.remove(metric_of_interest)
+#         metrics = [metric_of_interest]
+#         candidates = copy.deepcopy(allMetrics)
+#         candidates.remove(metric_of_interest)
 
-        while True:
-            energy_diff_df = pd.DataFrame()
-            for metric in candidates:
-                comb = metrics+[metric]
-                df = donor.concat(comb, 2016, total_index, method = mat_form_method)
-                energy_at_apprx_rank = utils.svdAanlysis(df, k=apprx_rank, verbose=False)[-1]
+#         while True:
+#             energy_diff_df = pd.DataFrame()
+#             for metric in candidates:
+#                 comb = metrics+[metric]
+#                 df = donor.concat(comb, 2016, total_index, method = mat_form_method)
+#                 energy_at_apprx_rank = utils.svdAanlysis(df, k=apprx_rank, verbose=False)[-1]
                 
-                if(energy_at_apprx_rank > b):
-                    energy_diff = np.abs(energy_at_apprx_rank - energy_captured)
-                    energy_diff_df = pd.concat([energy_diff_df, pd.DataFrame([[energy_diff]], index=[metric])], axis=0)
-        #             print(energy_diff)
-            if (energy_diff_df.shape[0] == 0):
-                break
-            new_metric = energy_diff_df.sort_values(0).index[0]
-            metrics = metrics + [new_metric]
-            candidates.remove(new_metric)
-        df_result.loc[metric_of_interest,metrics] = 1
+#                 if(energy_at_apprx_rank > b):
+#                     energy_diff = np.abs(energy_at_apprx_rank - energy_captured)
+#                     energy_diff_df = pd.concat([energy_diff_df, pd.DataFrame([[energy_diff]], index=[metric])], axis=0)
+#         #             print(energy_diff)
+#             if (energy_diff_df.shape[0] == 0):
+#                 break
+#             new_metric = energy_diff_df.sort_values(0).index[0]
+#             metrics = metrics + [new_metric]
+#             candidates.remove(new_metric)
+#         df_result.loc[metric_of_interest,metrics] = 1
         
-    metrics_list =[]
-    for i in range(num_k):
-        a = ((df_result.iloc[i,:]==1) & (df_result.iloc[:,i]==1))
-        metrics_list.append(a.index[a].values.tolist())
+#     metrics_list =[]
+#     for i in range(num_k):
+#         a = ((df_result.iloc[i,:]==1) & (df_result.iloc[:,i]==1))
+#         metrics_list.append(a.index[a].values.tolist())
 
-    return metrics_list
-    
-def getWeitghts(target, donor, metrics_list, expSetup, method = "mean"):   
-    # get mat_form_method
-    mat_form_method = expSetup[0] # "fixed"
-    
-    # get weights for metrics
-    weights_list = []
-    for metrics in metrics_list:
-        target_data = target.concat(metrics, 2016, pred_length=1)
-        num_k = len(metrics)
-        total_index = int(target_data.shape[1] / num_k)
-        donor_data = donor.concat(metrics, 2016, total_index, method = mat_form_method)
-    
-        if (method == "mean"):
-            weights = []
-            for i in range(num_k):
-                weights.append(1/(donor_data.iloc[:,i*total_index:(i+1)*total_index].mean().mean()))
-            weights_list.append(weights)
-        elif (method == "var"):
-            weights = []
-            for i in range(num_k):
-                weights.append(1/(1+np.var(donor_data.iloc[:,i*total_index:(i+1)*total_index].to_numpy().flatten())))
-            weights_list.append(weights)
-        else:
-            raise ValueError("invalid method")
-    return weights_list
+#     return metrics_list
 
 # test for a multiple time series imputation and forecasting
 def test():
@@ -172,7 +146,7 @@ def test():
     experiment setup
     """
     # overall setup
-    donorSetup= ["normalize","sliding", True]
+    donorSetup= [None,"fixed", True]
     # weighting = donorSetup[0] # None / "normalize"
     # mat_form_method = donorSetup[1] # "fixed"
     # skipNan = donorSetup[2] # (Boolean)
@@ -187,7 +161,9 @@ def test():
     ###################################################
     offMetrics = ["PTS_G","AST_G","TOV_G","PER_w", "FG%","FT%","3P_G"]
     defMetrics = ["TRB_G","STL_G","BLK_G"]
-    metrics_list = [offMetrics, defMetrics]
+    # metrics_list = [offMetrics, defMetrics]
+
+    metrics_list = [allMetrics]
 
     ###################################################
 
@@ -199,14 +175,16 @@ def test():
     playerNames.remove("Kobe Bryant")
     # playerNames.remove("Jason Kidd")
 
+    all_pred = pd.DataFrame()
+    all_true = pd.DataFrame()
     for playerName in playerNames:
-        print(playerName)
+        # print(playerName)
         # print("*** year - year_count matching for this player")
         # a = df_year[df_year.index == playerName]
         # print(a.dropna(axis=1))
 
         target = Target(playerName, allPivotedTableDict)
-        print("*** target - total index: ", target.total_index)
+        # print("*** target - total index: ", target.total_index)
         # print(target.concat(metrics_list[1]))
 
         mrsc = mRSC(donor, target, pred_interval, probObservation=1)
@@ -214,28 +192,26 @@ def test():
         player_pred = pd.DataFrame()
         player_true = pd.DataFrame()
         for i in range(len(metrics_list)):
-            mrsc.fit_threshold(metrics_list[i], 1, threshold, donorSetup, denoiseSetup,regression_method, verbose)
+            mrsc.fit_threshold(metrics_list[i], pred_interval, threshold, donorSetup, denoiseSetup,regression_method, verbose)
             pred = mrsc.predict()
             true = mrsc.getTrue()
             pred.columns = [playerName]
             true.columns = [playerName]
             player_pred = pd.concat([player_pred, pred], axis=0)
             player_true = pd.concat([player_true, true], axis=0)
-        # mask = (player_true !=0 )
-        # mape = np.abs(player_pred - player_true) / player_true[mask]
-        # print(mape.mean(axis=1))
-        # print("MAPE for all: ", mape.mean().mean())
+        all_pred = pd.concat([all_pred, player_pred], axis=1)
+        all_true = pd.concat([all_true, player_true], axis=1)
 
     ###################
-    print(player_pred)
-    print(player_true)
-    mask = (player_true !=0 )
-    mape = np.abs(player_pred - player_true) / player_true[mask]
+    print(all_pred)
+    print(all_pred.shape)
+    mask = (all_true !=0 )
+    mape = np.abs(all_pred - all_true) / all_true[mask]
     print("*** MAPE ***")
     print(mape.mean(axis=1))
     print("MAPE for all: ", mape.mean().mean())
 
-    rmse = utils.rmse_2d(player_true, player_pred)
+    rmse = utils.rmse_2d(all_true, all_pred)
     print()
     print("*** RMSE ***")
     print(rmse)
@@ -246,11 +222,10 @@ def test():
     # ##############################################################
     # # test 2
     # ##############################################################
-    # playerName = "Ryan Hollins"
+    # playerName = "LeBron James"
     # target = Target(playerName, allPivotedTableDict)
-    # print(target.concat(metrics_list[1]))
     # mrsc = mRSC(donor, target, pred_interval, probObservation=1)
-    # mrsc._assignData(metrics_list[1], pred_interval, weighting="normalize", mat_form_method = "fixed", skipNan = True)
+    # mrsc._assignData(metrics_list[0], pred_interval, weighting="normalize", mat_form_method = "fixed", skipNan = True)
     # # print(mrsc.metrics)
     # # print(mrsc.num_k)
     # # print(mrsc.target_data.shape)
@@ -263,13 +238,15 @@ def test():
     # print(a.dropna(axis=1))
     # print("*** target - total index: ", target.total_index)
 
-    # mrsc.fit_threshold(defMetrics, pred_interval, threshold, donorSetup, denoiseSetup,regression_method, verbose)
+    # mrsc.fit_threshold(allMetrics, pred_interval, threshold, donorSetup, denoiseSetup,regression_method, verbose)
     # pred = mrsc.predict()
     # true = mrsc.getTrue()
     # print("CHECK")
     # print(mrsc.target_data)
+    # print()
     # print("PRED")
     # print(pred)
+    # print()
     # print("TRUE")
     # print(true)
 

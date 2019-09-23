@@ -50,7 +50,7 @@ class Donor:
             df_final.to_pickle("../data/nba-players-stats/fixed_window_{}_{}.pkl".format(window,metric))
         return df_final
     
-    def concat(self, metrics, total_index, method = "fixed", skipNan = True, nan_index = None):
+    def concat(self, metrics, total_index, method = "fixed", skipNan = True, nan_index = []):
         """
         metrics: (list) metrics you want to use
         total_index: (int) window size

@@ -74,9 +74,10 @@ class SVDmodel:
             else:
                 self.donor_data = utils.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k, reindex = True)
 
-        # get self.donor_pre
+        # apply hsvt and get self.donor_pre
         if (self.denoise_mat_method == "all"):
             df_hsvt = self.hsvt(self.donor_data, self.singvals)
+            self.donor_data = df_hsvt
             self.donor_pre = utils.get_preint_data(df_hsvt, self.interv_index, self.total_index, self.num_k)
         elif(self.denoise_mat_method == "pre"):
             df_pre = utils.get_preint_data(self.donor_data, self.interv_index, self.total_index, self.num_k)
@@ -97,8 +98,8 @@ class SVDmodel:
 
         # regression
         if (self.regression_method == 'pinv'):
-            self.beta = np.linalg.lstsq(self.donor_pre.T, self.target_pre.T, rcond=None)[0]
-            # self.beta = np.linalg.pinv(self.donor_pre.T, rcond=1.0000000000000001e-14).dot(self.target_pre.T)
+            # self.beta = np.linalg.lstsq(self.donor_pre.T, self.target_pre.T, rcond=None)[0]
+            self.beta = np.linalg.pinv(self.donor_pre.T, rcond=1.0000000000000001e-13).dot(self.target_pre.T)
             if (verbose == True):
                 print("##########################################")
                 print("*** target size: ", self.target_pre.shape)
