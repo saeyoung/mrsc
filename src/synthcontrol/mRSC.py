@@ -125,7 +125,6 @@ class mRSC:
         # self.donor_data = (self.donor_data * np.sqrt(var_list))
         # self.target_data = (self.target_data * np.sqrt(var_list))
         
-    # todo: remove pred_interval
     def _assignData(self, metrics, weighting="normalize", mat_form_method = "fixed", skipNan = True):
         self.metrics = metrics
         self.num_k = len(self.metrics)
@@ -139,13 +138,12 @@ class mRSC:
         self.donor_data = self.donor.concat(self.metrics, self.total_index, self.mat_form_method, self.skipNan, self.nan_index)
         self.donor_data = self.donor_data.iloc[self.donor_data.index != self.target.key] # remove target from the donor (sometimes it's not necessary)
 
-        if (self.donor_data.shape[0] < 5):
+        if (self.donor_data.shape[0] < 2):
             raise Exception("Donor pool size too small. Donor pool size: "+ self.target.key +str(self.donor_data.shape))
 
         if (self.weighting != None):
             self.apply_weights()
 
-    # todo: remove pred_interval
     def fit_threshold(self, metrics, threshold =0.99, donorSetup= [None,"fixed", True] , denoiseSetup = ["SVD", "all"], regression_method = "pinv", verbose = False):
         weighting = donorSetup[0] # None / "normalize"
         mat_form_method = donorSetup[1] # "fixed"
