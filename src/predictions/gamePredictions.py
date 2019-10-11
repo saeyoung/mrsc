@@ -18,7 +18,7 @@ import mrsc.src.utils as utils
 from mrsc.src.dataPrep import plotData, gameData, annualData
 from mrsc.src.predictions import cvxRegression, predictionMethods, SLA, annualPredictions
 
-
+""" hard singular value thresholding """ 
 def hsvt(X, rank): 
     u, s, v = np.linalg.svd(X, full_matrices=False)
     s[rank:].fill(0)
@@ -30,12 +30,12 @@ def projectFeatures(featureMatrix, feature):
     regr.fit(featureMatrix.T, feature)
     return np.dot(featureMatrix.T, regr.coef_)
 
-
 """ Forecast via Supervised Learning Method """
 def forecastSLA(df, player, window, catFeatureTypes, sla, featureMatrix, metric='PTS_G', ewmParam=0.5, n=2): 
     predsSLA = np.array([])
     true = np.array([])
 
+    # get player specific data
     dfPlayer = df[df.Player == player]
     dates = dfPlayer.gmDate.values
 
@@ -105,8 +105,8 @@ def forecastARIMA(df, dates, buffer, metric, history, paramsARIMA):
     predsARIMA = np.array([])
     true = np.array([])
     
-    for i in range(buffer, len(dates)):   
-    #for i in range(len(dates))
+    for i in range(buffer, len(dates)): 
+        # forecast  
         model = ARIMA(history, order=paramsARIMA)
         model_fit = model.fit(disp=0)
         predARIMA = model_fit.forecast()[0][0]
@@ -120,20 +120,20 @@ def forecastARIMA(df, dates, buffer, metric, history, paramsARIMA):
 
     return predsARIMA, true
 
-
+""" Train and Test via ARIMA """ 
 def ARIMATrainTest(paramDict, dfTrain, dfTest, player, buffer, metric='PTS_G'): 
     # get player specific information
     dfTrainPlayer = dfTrain[dfTrain.Player == player]
     dfTestPlayer = dfTest[dfTest.Player == player]
     datesTest = dfTestPlayer.gmDate.values
 
-    """ CV Stage """
+    """ extract hyper-parameters """
     d = int(paramDict['d'])
     p = int(paramDict['p'])
     q = int(paramDict['q'])
     arimaParams = (d, p, q)
         
-    # ARIMA forecast
+    # forecast
     trainHistory = dfTrainPlayer[metric].values
     testHistory = dfTestPlayer.loc[dfTestPlayer.gmDate.isin(datesTest[:buffer]), metric].values
     history = np.append(trainHistory, testHistory)

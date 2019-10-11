@@ -95,31 +95,18 @@ def checkTeammates(df, player, date, metric='PTS_G', n=2):
     # check if top teammates are playing
     topPlayingTeammates = list(set(topTeammates) & set(teammates))
     
-    if len(topPlayingTeammates) < len(topTeammates): 
-        teammateAbsent = 1
-    else:
-        teammateAbsent = -1
-    
-    return teammateAbsent
+    return 1 if len(topPlayingTeammates) < len(topTeammates) else -1
 
 """ get game outcome (Win/Loss) """
 def getGameOutcome(df, date): 
     result = df.loc[df.gmDate == date, 'teamRslt'].values[0]
-    if result == 'Win':
-        result = 1
-    else: 
-        result = -1
-    return result
+    return 1 if result == 'Win' else -1
 
 
 """ get team location (Home/Away) """
 def getTeamLoc(df, date): 
     teamLoc = df.loc[df.gmDate == date, 'teamLoc'].values[0]
-    if teamLoc == 'Home':
-        teamLoc = 1
-    else: 
-        teamLoc = -1
-    return teamLoc 
+    return 1 if teamLoc == 'Home' else -1
 
 """ get categorical features """ 
 def getCategoricalFeatures(featuresDict, featureTypes): 
@@ -156,7 +143,7 @@ def constructFeatureMatrixLabels(df, player, window, catFeatureTypes, metric='PT
     labels = np.array([])
     featureMatrix = np.array([])
 
-    # get player data
+    # get player specific data
     dfPlayer = df[df.Player == player]
     dates = dfPlayer.gmDate.values 
         
