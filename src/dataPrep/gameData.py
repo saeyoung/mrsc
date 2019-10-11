@@ -32,9 +32,7 @@ def createGameData():
     return df_games
 
 
-"""
-Split Game DataFrame into Train/CV/Test Dataframes
-"""
+""" Split Game DataFrame into Train/CV/Test Dataframes """
 def splitDFs(df, trainDates, cvDates, testDates): 
     # Training Dataframe
     d1 = trainDates[0]
@@ -52,26 +50,4 @@ def splitDFs(df, trainDates, cvDates, testDates):
     dfTest = df[(df.gmDate >= d1) & (df.gmDate <= d2)]
     
     return dfTrain, dfCV, dfTest
-
-
-"""
-Split Game DataFrame into Train/CV/Test Dataframes
-"""
-"""def splitDFs(df, player, trainDates, cvDates, testDates): 
-    # Training Dataframe
-    d1 = trainDates[0]
-    d2 = trainDates[1]
-    dfTrain = df[(df.gmDate >= d1) & (df.gmDate <= d2) & (df.Player == player)]
-
-    # Validation Dataframe
-    d1 = cvDates[0]
-    d2 = cvDates[1]
-    dfCV = df[(df.gmDate >= d1) & (df.gmDate <= d2) & (df.Player == player)]
-    
-    # Validation Dataframe
-    d1 = testDates[0]
-    d2 = testDates[1]
-    dfTest = df[(df.gmDate >= d1) & (df.gmDate <= d2) & (df.Player == player)]
-    
-    return dfTrain, dfCV, dfTest"""
 

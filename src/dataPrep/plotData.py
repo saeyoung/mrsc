@@ -1,10 +1,8 @@
 from matplotlib import pyplot as plt
 import numpy as np 
 
-"""
-Plot moving average
-"""
-def plotMA(pred, true, windowSize, player, metric): 
+""" Plot moving average """ 
+def plotMA(pred, true, windowSize, player, folderName, metric='PTS_G', saveFig=False): 
     filterMA = np.ones((windowSize,)) / windowSize
     trueMA = np.convolve(true, filterMA, mode='valid')
     predMA = np.convolve(pred, filterMA, mode='valid')
@@ -19,10 +17,12 @@ def plotMA(pred, true, windowSize, player, metric):
     plt.legend(loc='best')
 
     # save figure
-    fileName = 'plots/games/' + player + str(windowSize) + '.png'
-    plt.savefig(fileName, bbox_inches='tight')
+    if saveFig: 
+        fileName = 'plots/games/' + folderName + player + str(windowSize) + '.png'
+        plt.savefig(fileName, bbox_inches='tight')
     plt.show()
 
+""" Compute root mean squared error """ 
 def rmse(pred, true): 
     error = (pred - true) ** 2
     return np.sqrt(np.mean(error))

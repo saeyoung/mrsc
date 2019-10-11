@@ -32,6 +32,7 @@ class SLAForecast:
             min_samples_leaf = self.params['min_samples_leaf']
             self.model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, 
                 min_samples_leaf=min_samples_leaf, min_samples_split = min_samples_split)
+
         # support vector regression
         elif self.method.lower() == 'svr': 
             C = self.params['C']
@@ -44,6 +45,7 @@ class SLAForecast:
         else: 
             self.model = linear_model.LinearRegression(fit_intercept=False)
 
+        # fit model to data
         self.model.fit(featureMatrix, labels)
             
     def predict(self, feature):
