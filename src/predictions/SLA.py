@@ -43,9 +43,9 @@ class SLAForecast:
         # locally weighted regression
         elif self.method.lower() == 'lwr': 
             f_type = self.params['f_type']
-            params = self.params['params']
+            f_params = self.params['f_params']
             fit_intercept = self.params['fit_intercept']
-            self.model = local_regression.LWRegressor(f, params, fit_intercept=fit_intercept) 
+            self.model = local_regression.LWRegressor(f_type, f_params, fit_intercept=fit_intercept) 
 
         # radius neighbors regression
         elif self.method.lower() == 'rnn':
@@ -442,7 +442,6 @@ def getFeaturesLabels(infoDict, dataDict, featuresDict, labelsDict, modelDict):
     features[:, :n] = hsvt(features[:, :n], rank=rank)
     return features, labels
 
-
 """ Train SLA Model """ 
 # dataDict should be Train or TrainCV
 def trainSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
@@ -504,7 +503,10 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
             feature[:n] = projectFeatures(features[:, :n], feature[:n])
 
         # get gameday forecast
-        pred = sla.predict(feature.reshape(1, feature.shape[0]))[0]
+        if slaDict['type'] == 'lwr':
+            pred = sla.predict(feature)
+        else:
+            pred = sla.predict(feature.reshape(1, feature.shape[0]))[0]
         pred = updateLabel(pred, dates, i, dfPlayer, labelsDict, metric, train=False)
         preds = np.append(preds, pred)
 

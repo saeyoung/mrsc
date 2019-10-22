@@ -1,18 +1,18 @@
 import numpy as np
 
 class LWRegressor():
-    def __init__(self, f_type, params, fit_intercept=False):
+    def __init__(self, f_type, f_params, fit_intercept=False):
         self.fit_intercept = fit_intercept
         self.f_type = f_type
-        self.params = params
+        self.f_params = f_params
         
-    def fit(X, y): 
+    def fit(self, X, y): 
         self.X = X
         self.y = y
         
-    def predict(x0): 
+    def predict(self, x0): 
         # add bias 
-        if fit_intercept: 
+        if self.fit_intercept: 
             x0 = np.r_[1, x0]
             X = np.c_[np.ones(len(self.X)), self.X]
         else:
@@ -22,7 +22,7 @@ class LWRegressor():
         if self.f_type == 'inv_dist':
             w = self.inverse_distance(x0, X)
         else: 
-            tau = self.params['tau']
+            tau = self.f_params['tau']
             w = self.radial_kernel(x0, X, tau)
         xw = X.T * w
         beta = np.linalg.pinv(xw @ X) @ xw @ self.y
@@ -31,7 +31,8 @@ class LWRegressor():
         return x0 @ beta
     
     def radial_kernel(self, x0, X, tau=0.001):
-        return np.exp(np.sum((X - x0)**2 , axis=1) / (-2 * tau * tau))
+        return np.exp(np.sum((X - x0) , axis=1) / (-2 * tau * tau))
+        #return np.exp(np.sum((X - x0)**2 , axis=1) / (-2 * tau * tau))
 
     def inverse_distance(self, x0, X): 
         return 1 / np.sum((X - x0), axis=1)

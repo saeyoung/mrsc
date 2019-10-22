@@ -33,6 +33,7 @@ def getWindowAvg(series, window):
         seriesWindow = np.append(seriesWindow, windowAvg)
     return seriesWindow 
 
+""" create dictionaries of parameters """ 
 def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     # features
     statsWindow = paramDict['statsWindow']
@@ -58,6 +59,9 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     weights = paramDict['weights']
     algo = paramDict['algo']
     leaf_size = paramDict['leaf_size']
+    f_type = paramDict['f_type']
+    f_params = paramDict['f_params']
+    fit_intercept = paramDict['fit_intercept']
     
     # create features dictionaries
     featuresDict = dict()
@@ -100,14 +104,13 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
         params = {'radius': radius, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size}
     elif slaType == 'ridge':
         params = {'alpha': alpha}
+    elif slaType == 'lwr':
+        params = {'f_type': f_type, 'f_params': f_params, 'fit_intercept': fit_intercept}
     else:
         params = {}
     slaDict = {'type': slaType, 'params': params}
     
     return infoDict, featuresDict, labelsDict, modelDict, slaDict
-
-
-
 
 
 
