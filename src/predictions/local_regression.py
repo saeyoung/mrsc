@@ -30,9 +30,8 @@ class LWRegressor():
         # predict value
         return x0 @ beta
     
-    def radial_kernel(self, x0, X, tau=0.001):
-        return np.exp(np.sum((X - x0) , axis=1) / (-2 * tau * tau))
-        #return np.exp(np.sum((X - x0)**2 , axis=1) / (-2 * tau * tau))
+    def radial_kernel(self, x0, X, tau=1.0):
+        return np.exp(np.sum((X - x0) ** 2 , axis=1) / (-2 * tau * tau))
 
     def inverse_distance(self, x0, X): 
-        return 1 / np.sum((X - x0), axis=1)
+        return 1 / np.sum((X - x0) ** 2, axis=1)
