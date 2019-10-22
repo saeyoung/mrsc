@@ -42,10 +42,11 @@ class SLAForecast:
 
         # locally weighted regression
         elif self.method.lower() == 'lwr': 
-            f_type = self.params['f_type']
-            f_params = self.params['f_params']
+            #f_type = self.params['f_type']
+            #f_params = self.params['f_params']
+            tau = self.params['tau']
             fit_intercept = self.params['fit_intercept']
-            self.model = local_regression.LWRegressor(f_type, f_params, fit_intercept=fit_intercept) 
+            self.model = local_regression.LWRegressor(tau=tau, fit_intercept=fit_intercept) 
 
         # radius neighbors regression
         elif self.method.lower() == 'rnn':

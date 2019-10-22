@@ -67,8 +67,9 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     weights = paramDict['weights']
     algo = paramDict['algo']
     leaf_size = paramDict['leaf_size']
-    f_type = paramDict['f_type']
-    f_params = paramDict['f_params']
+    #f_type = paramDict['f_type']
+    #f_params = paramDict['f_params']
+    tau = paramDict['tau']
     fit_intercept = paramDict['fit_intercept']
     
     # create features dictionaries
@@ -115,7 +116,8 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     elif slaType == 'ridge':
         params = {'alpha': alpha}
     elif slaType == 'lwr':
-        params = {'f_type': f_type, 'f_params': f_params, 'fit_intercept': fit_intercept}
+        params = {'tau': tau, 'fit_intercept': fit_intercept}
+        #params = {'f_type': f_type, 'f_params': f_params, 'fit_intercept': fit_intercept}
     else:
         params = {}
     slaDict = {'type': slaType, 'params': params}  
