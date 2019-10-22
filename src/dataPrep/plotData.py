@@ -1,5 +1,7 @@
 from matplotlib import pyplot as plt
-import numpy as np 
+import numpy as np
+import pandas as pd 
+from sklearn.metrics import r2_score
 
 """ Plot moving average """ 
 def plotMA(pred, true, windowSize, player, folderName='', metric='PTS_G', saveFig=False): 
@@ -44,19 +46,52 @@ def plotWindowAvg(seriesDict, trueDict, windowSize, player, errorType='rmse', fo
     plt.plot(trueWindow, label='true', marker='.')
 
     # plot series
+    slaType = seriesDict['type']
+    series = seriesDict['data']
+    seriesWindow = getWindowAvg(series, windowSize)
+    if errorType == 'mae':
+        error = mae(trueWindow, seriesWindow).round(2)
+    elif errorType == 'r2': 
+        error = r2_score(trueWindow, seriesWindow).round(2)
+    else: 
+        error = rmse(trueWindow, seriesWindow).round(2)
+    corr = pd.Series(seriesWindow).corr(pd.Series(trueWindow)).round(2)
+    plt.plot(seriesWindow, label='{}'.format(slaType), marker='.')
+    plt.ylabel(metric)
+    plt.xlabel('Games')
+    plt.title('{}: window={}, {}={}, corr={}'.format(player, windowSize, errorType, error, corr))
+    plt.legend(loc='best')
+    plt.show() 
+
+""" Plot window average (fixed) """ 
+"""def plotWindowAvg(seriesDict, trueDict, windowSize, player, errorType='rmse', folderName='', metric='PTS_G', saveFig=False): 
+    # unpack true data
+    true = trueDict['data']
+
+    # compute window
+    trueWindow = getWindowAvg(true, windowSize)
+
+    # plot true
+    plt.figure()
+    plt.plot(trueWindow, label='true', marker='.')
+
+    # plot series
     for s, sdict in seriesDict.items(): 
         series = sdict['data']
         seriesWindow = getWindowAvg(series, windowSize)
         if errorType == 'mae':
             error = mae(trueWindow, seriesWindow).round(2)
+        elif errorType == 'r2': 
+            error = r2_score(trueWindow, seriesWindow).round(2)
         else: 
             error = rmse(trueWindow, seriesWindow).round(2)
-        plt.plot(seriesWindow, label='{}: {}'.format(s, error), marker='.')
+        corr = pd.Series(seriesWindow).corr(pd.Series(trueWindow)).round(2)
+        plt.plot(seriesWindow, label='{}: {}={}, corr={}'.format(s, errorType, error, corr), marker='.')
     plt.ylabel(metric)
     plt.xlabel('Games')
     plt.title('{}: window = {}, errType = {}'.format(player, windowSize, errorType))
     plt.legend(loc='best')
-    plt.show() 
+    plt.show() """
 
 def getWindowAvg(series, window): 
     seriesWindow = np.array([])

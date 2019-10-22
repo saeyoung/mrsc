@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.arima_model import ARIMA
 from sklearn import linear_model
+from sklearn.metrics import r2_score
 
 # dennis libraries
 from mrsc.src.predictions import predictionMethods, SLA
@@ -16,13 +17,20 @@ def rmse(pred, true):
 def mae(pred, true):
     return np.mean(np.abs(pred - true))
 
+""" compute correlation """
+def corr(pred, true): 
+    return pd.Series(pred).corr(pd.Series(true))
+
+""" return average error over window """ 
 def errorWindowAvg(pred, true, windowSize, errorType='rmse'):
     predWindow = getWindowAvg(pred, windowSize)
     trueWindow = getWindowAvg(true, windowSize)
     if errorType == 'mae':
-        error = mae(predWindow, trueWindow)
+        error = mae(trueWindow, predWindow)
+    elif errorType == 'r2': 
+        error = r2_score(trueWindow, predWindow)
     else:
-        error = rmse(predWindow, trueWindow)
+        error = rmse(trueWindow, predWindow)
     return error
 
 """ compute window average """ 
@@ -48,7 +56,7 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     # model
     rank = paramDict['rank']
     project = paramDict['project']
-    update = paramDict['update']
+    updateType = paramDict['updateType']
     updatePeriod = paramDict['updatePeriod']
     
     # sla 
@@ -76,10 +84,12 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
             featuresDict.update({'gmOutcome': {'window': gmWindow, 'com': gmCom}})
         if feature == 'oppt': 
             featuresDict.update({'oppt': {'window': opptWindow}})
-        if feature == 'teamLoc':
-            featuresDict.update({'teamLoc': {}})
+        if feature == 'delta': 
+            featuresDict.update({'delta': {'window': statsWindow, 'com': statsCom}})
         if feature == 'teammates': 
             featuresDict.update({'teammates': {'window': teamWindow, 'n': n, 'com': teamCom}})
+        if feature == 'teamLoc':
+            featuresDict.update({'teamLoc': {}})
             
     # create labels dictionary     
     if labelType == 'mean':
@@ -90,7 +100,7 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
         labelsDict = {'none': {}}
     
     # create model dictionary
-    modelDict = {'rank': rank, 'project': project, 'update': update, 'updatePeriod': updatePeriod}
+    modelDict = {'rank': rank, 'project': project, 'updateType': updateType, 'updatePeriod': updatePeriod}
     
     # create info dictionary
     #bufferWindow = np.max([statsWindow, gmWindow, opptWindow])
@@ -108,8 +118,7 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
         params = {'f_type': f_type, 'f_params': f_params, 'fit_intercept': fit_intercept}
     else:
         params = {}
-    slaDict = {'type': slaType, 'params': params}
-    
+    slaDict = {'type': slaType, 'params': params}  
     return infoDict, featuresDict, labelsDict, modelDict, slaDict
 
 
@@ -270,7 +279,8 @@ def baselineForecast(df, player, window, buffer=0, metric='PTS_G'):
     dates = dfPlayer.gmDate.values 
 
     # forecast
-    for i in range(buffer, len(dates)): 
+    for i in range(buffer+1, len(dates)):
+    #for i in range(buffer, len(dates)): 
         # baseline predictor using mean of past 'window' games
         datesWindow = dates[i-window: i]  
         windowVals = dfPlayer.loc[dfPlayer.gmDate.isin(datesWindow), metric].values

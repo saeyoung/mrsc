@@ -291,9 +291,6 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
 
             # compute performance of relevant dates & apply ewm
             ewm_windowVals = getEWMGamePerf(dfPlayer, dates, i, window, com=com, metric='PTS_G')
-            #datesWindow = getDatesWindow(dates, i, window)
-            #windowVals = getWindowVals(dfPlayer, datesWindow, metric)
-            #ewm_windowVals = predictionMethods.applyEWMA(pd.Series(windowVals), param=com).values
             
             # get most recent game performance 
             featureVal = ewm_windowVals[-1]
@@ -357,6 +354,28 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
 
             # append to feature vector
             featureVec = np.append(featureVec, featureVal)
+            num_hsvt_features += 1
+
+        # get delta performance between previous game and prior performances
+        if feature == 'delta': 
+            # get parameters
+            window = featureParams['window']
+            com = featureParams['com']
+
+            # get previous performance 
+            prevDate = dates[i-1]
+            prevGmPerf = getGamePerf(dfPlayer, prevDate)
+
+            # get performance over window of games prior to previous date
+            datesWindow = getDatesWindow(dates, i-1, window)
+            windowVals = getWindowVals(dfPlayer, datesWindow, metric)
+
+            # get difference in performances
+            #featureVal = prevGmPerf - np.mean(windowVals)
+            featureVal = prevGmPerf - windowVals[-1]
+
+            # append to feature vector
+            featureVec = np.append(featureVec, featureVal) 
             num_hsvt_features += 1
 
         # get team location on game date
@@ -439,14 +458,55 @@ def getFeaturesLabels(infoDict, dataDict, featuresDict, labelsDict, modelDict):
     # unpack model info
     rank = modelDict['rank']
     #features = hsvt(features, rank=rank)
-    features[:, :n] = hsvt(features[:, :n], rank=rank)
-    return features, labels
+    featuresProj = features.copy()
+    featuresProj[:, :n] = hsvt(features[:, :n], rank=rank)
+    return featuresProj, features, labels
+
+""" update sla model """ 
+def updateModel(updateCount, updateType, updatePeriod, sla, labels, label, 
+    featuresUpdate, features, feature, featuresProj, featureProj, n, rank):
+    # append to raw features and threshold when retraining model
+    if updateType == 'raw': 
+        # featuresUpdate = raw features
+        featuresUpdate = np.vstack([featuresUpdate, feature])
+        labels = np.append(labels, label)
+        updateCount += 1
+
+        if updateCount == updatePeriod: 
+            # threshold raw features
+            featuresUpdateProj = featuresUpdate.copy()
+            featuresUpdateProj[:, :n] = hsvt(featuresUpdate[:, :n], rank=rank)
+
+            # retrain model
+            sla.fit(featuresUpdateProj, labels)
+
+            # reinitialize
+            featuresProj = featuresUpdateProj
+            updateCount = 0
+
+    # append to projected features (featuresUpdate = featuresProj)
+    elif updateType == 'project':
+        # featuresUpdate = projected features
+        featuresUpdate = np.vstack([featuresUpdate, featureProj])
+        labels = np.append(labels, label)
+        updateCount += 1
+
+        if updateCount == updatePeriod: 
+            # retrain model
+            sla.fit(featuresUpdate, labels)
+
+            # reinitialize
+            featuresProj = featuresUpdate 
+            updateCount = 0
+
+    # otherwise don't update
+    return updateCount, featuresUpdate, featuresProj, labels
 
 """ Train SLA Model """ 
 # dataDict should be Train or TrainCV
 def trainSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
     # construct feature matrix and label of vectors
-    features, labels = getFeaturesLabels(infoDict, dataDict, featuresDict, labelsDict, modelDict)
+    featuresProj, features, labels = getFeaturesLabels(infoDict, dataDict, featuresDict, labelsDict, modelDict)
 
     # unpack sla parameters 
     slaType = slaDict['type']
@@ -454,10 +514,10 @@ def trainSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
 
     # create and fit model to data
     sla = SLAForecast(slaType, slaParams)
-    sla.fit(features, labels)
+    sla.fit(featuresProj, labels)
 
     # update sla dictionary
-    slaDict.update({'model': sla, 'features': features, 'labels': labels}) 
+    slaDict.update({'model': sla, 'featuresProj': featuresProj, 'features': features, 'labels': labels}) 
 
 """ Test SLA Model """ 
 # dataDict should be CV or Test
@@ -473,13 +533,14 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
 
     # unpack sla info
     sla = slaDict['model']
+    featuresProj = slaDict['featuresProj']
     features = slaDict['features']
     labels = slaDict['labels']
 
     # unpack model info
     rank = modelDict['rank']
     project = modelDict['project']
-    update = modelDict['update']
+    updateType = modelDict['updateType']
     updatePeriod = modelDict['updatePeriod']
 
     # get player specific data (dataframe + dates played)
@@ -489,24 +550,27 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
     # initialize
     preds = np.array([])
     true = np.array([])
-    featuresUpdate = features.copy()
+    featuresUpdate = features.copy() if updateType == 'raw' else featuresProj.copy()
     updateCount = 0
 
     # iterate through every game
-    for i in range(bufferWindow, len(dates)): 
-        # get gameday feature
+    for i in range(bufferWindow+1, len(dates)): 
+    #for i in range(bufferWindow, len(dates)): 
+        # get gameday feature (raw)
         feature, n = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric)
 
-        # project relevant features onto de-noised feature space
-        if project:
-            #feature = projectFeatures(features, feature)
-            feature[:n] = projectFeatures(features[:, :n], feature[:n])
+        # project relevant features onto de-noised feature space if specified, else feature static
+        featureProj = feature.copy()
+        if project: 
+            featureProj[:n] = projectFeatures(featuresProj[:, :n], feature[:n])
 
         # get gameday forecast
         if slaDict['type'] == 'lwr':
-            pred = sla.predict(feature)
+            #pred = sla.predict(feature)
+            pred = sla.predict(featureProj)
         else:
-            pred = sla.predict(feature.reshape(1, feature.shape[0]))[0]
+            #pred = sla.predict(feature.reshape(1, feature.shape[0]))[0]
+            pred = sla.predict(featureProj.reshape(1, featureProj.shape[0]))[0]
         pred = updateLabel(pred, dates, i, dfPlayer, labelsDict, metric, train=False)
         preds = np.append(preds, pred)
 
@@ -515,21 +579,13 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
         label = getGamePerf(dfPlayer, currDate, metric)
         true = np.append(true, label)
 
-        # update labels and features
-        featuresUpdate = np.vstack([featuresUpdate, feature])
-        labels = np.append(labels, label)
-        updateCount += 1
-
-        # update model
-        if update and (updateCount == updatePeriod): 
-            # retrain model
-            sla.fit(featuresUpdate, labels)
-
-            # reinitialize
-            features = featuresUpdate 
-            updateCount = 0
-
+        # update labels, features, model
+        updateCount, featuresUpdate, featuresProj, labels = updateModel(updateCount, updateType, updatePeriod, 
+            sla, labels, label, featuresUpdate, features, feature, featuresProj, featureProj, n, rank)
     return preds, true 
+
+
+
 
 
 """ Get points per game scored by team's opposition """ 
