@@ -70,14 +70,14 @@ def get_active_players(stats_target, pred_year, buffer, min_games):
     
     return active.tolist()
 
-
-def createTargetDonors(params):
+""" Create Annual Dataframe """ 
+def createAnnualData(params, df_recent):
     starting_year = params[0]
     min_games = params[1]
     min_years = params[2]
     pred_year = params[3]
     pred_interval = params[4]
-    
+
     """ players dataframe """
     players = pd.read_csv("../data/nba-players-stats/player_data.csv")
 
@@ -87,12 +87,14 @@ def createTargetDonors(params):
     # filter players by years considered
     players = players[players.year_start >= starting_year] 
 
-
     """ stats dataframe """
     stats = pd.read_csv("../data/nba-players-stats/Seasons_Stats.csv")
 
     # fix the name* issue
     stats = stats.replace('\*','',regex=True)
+    
+    # merge with 2018 data
+    stats = pd.merge(left=stats, right=df_recent, how='outer')
 
     # sort players by (name, year)
     stats = stats.sort_values(by=['Player', 'Year'])
@@ -136,6 +138,16 @@ def createTargetDonors(params):
     stats.Year = stats.Year.astype(int)
     stats.year_start = stats.year_start.astype(int)
     stats['year_count'] = stats.Year - stats.year_start
+    
+    return stats
+
+""" Create Target and Donors """ 
+def createTargetDonors(params, stats):
+    starting_year = params[0]
+    min_games = params[1]
+    min_years = params[2]
+    pred_year = params[3]
+    pred_interval = params[4]
 
     """ donor setup """
     # only consider years prior to 'pred_year'
@@ -170,8 +182,7 @@ def createTargetDonors(params):
     targetNames = get_active_players(stats_target, pred_year, min_years, min_games) 
     targetNames.sort()
 
-    return donor, allPivotedTableDict, targetNames, stats
-
+    return donor, allPivotedTableDict, targetNames
 
 
 def getTopPlayers(stats, year, metric, n):

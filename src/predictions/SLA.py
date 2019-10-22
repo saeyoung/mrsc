@@ -2,11 +2,13 @@ import numpy as np
 import pandas as pd
 from sklearn import linear_model
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.neighbors import KNeighborsRegressor, RadiusNeighborsRegressor
 from sklearn.svm import SVR
 import math
+import heapq
 
 # personal libraries
-from mrsc.src.predictions import predictionMethods, gamePredictions
+from mrsc.src.predictions import predictionMethods, gamePredictions, local_regression
 
 """ Supervised Learning Forecasting """
 class SLAForecast: 
@@ -37,6 +39,31 @@ class SLAForecast:
             degree = self.params['degree']
             epsilon = self.params['epsilon']
             self.model = SVR(C=C, gamma=gamma, degree=degree, epsilon=epsilon)
+
+        # locally weighted regression
+        elif self.method.lower() == 'lwr': 
+            f_type = self.params['f_type']
+            params = self.params['params']
+            fit_intercept = self.params['fit_intercept']
+            self.model = local_regression.LWRegressor(f, params, fit_intercept=fit_intercept) 
+
+        # radius neighbors regression
+        elif self.method.lower() == 'rnn':
+            radius = self.params['radius']
+            weights = self.params['weights']
+            algo = self.params['algo']
+            leaf_size = self.params['leaf_size']
+            self.model = RadiusNeighborsRegressor(radius=radius, weights=weights,
+                                                    algorithm=algo, leaf_size=leaf_size)
+
+        # k-nearest neighbors regression
+        elif self.method.lower() == 'knn': 
+            n_neighbors = self.params['n_neighbors']
+            weights = self.params['weights']
+            algo = self.params['algo']
+            leaf_size = self.params['leaf_size']
+            self.model = KNeighborsRegressor(n_neighbors=n_neighbors, weights=weights,
+                                                algorithm=algo, leaf_size=leaf_size)
 
         # linear regression
         else: 
@@ -77,7 +104,7 @@ def getTeamOppPTSDict(dfMaster, teams):
 
         for date in dates: 
             # input points scored by team on date
-            dfTeam.loc[dfTeam.gmDate == date, 'PTS'] = getTeamPTS(df, date)
+            dfTeam.loc[dfTeam.gmDate == date, 'PTS'] = getTeamPerf(df, date)
 
             # get opposing team info
             oppTeam = df.loc[df.gmDate == date, 'opptAbbr'].values[0]
@@ -85,7 +112,7 @@ def getTeamOppPTSDict(dfMaster, teams):
 
             # input points scored by opposing team
             dfTeam.loc[dfTeam.gmDate == date, 'OppTeam'] = oppTeam
-            dfTeam.loc[dfTeam.gmDate == date, 'OppPTS'] = getTeamPTS(dfOpp, date)
+            dfTeam.loc[dfTeam.gmDate == date, 'OppPTS'] = getTeamPerf(dfOpp, date)
 
         teamsDict[team] = dfTeam
     return teamsDict
@@ -154,6 +181,12 @@ def checkTeammates(df, player, date, metric='PTS_G', n=2):
     topPlayingTeammates = list(set(topTeammates) & set(teammates)) 
     return 1 if len(topPlayingTeammates) < len(topTeammates) else -1
 
+""" get teammates on date """
+def getTeammates(df, player, team, date):
+    teammates = df.loc[(df.teamAbbr == team) & (df.gmDate == date), 'Player'].values.tolist()
+    teammates.remove(player)
+    return teammates
+
 """ get game outcome (Win/Loss) """
 def getGameOutcomes(df, dates): 
     results = df.loc[df.gmDate.isin(dates), 'teamRslt'].values
@@ -175,6 +208,45 @@ def getWindowVals(df, dates, metric='PTS_G'):
 """ get dates within window size """ 
 def getDatesWindow(dates, i, window):
     return dates[i-window: i] if i >= window else dates[:i]
+
+""" get team on date """
+def getTeam(df, date):
+    return df.loc[df.gmDate == date, 'teamAbbr'].values[0]
+
+""" get opposing team on date """
+def getOppTeam(df, date): 
+    return df.loc[df.gmDate == date, 'opptAbbr'].values[0]
+
+""" get ewm game perf """
+def getEWMGamePerf(df, dates, i, window, com=0.3, metric='PTS_G'):
+    # get performance over window
+    datesWindow = getDatesWindow(dates, i, window)
+    windowVals = getWindowVals(df, datesWindow, metric)
+
+    # return ewm performance
+    return predictionMethods.applyEWMA(pd.Series(windowVals), param=com).values
+
+""" get performance of top n teammates over window after applying ewm """ 
+def topNTeammatesPerf(df, teammates, date, window, n=2, com=0.3, metric='PTS_G'):
+    perfList = np.array([])
+    for player in teammates: 
+        # get teammate info
+        dfPlayer = df[df.Player == player]
+        
+        # get valid dates
+        dates = dfPlayer.loc[dfPlayer.gmDate < date, 'gmDate'].values
+        
+        # get performance over window
+        datesWindow = dates[-window:]
+        windowVals = getWindowVals(dfPlayer, datesWindow, metric) 
+        
+        # get ewm performance
+        ewmPerf = predictionMethods.applyEWMA(pd.Series(windowVals), param=com).values
+        ewmPerf = ewmPerf[-1] if ewmPerf.size else 0
+        
+        # append to performance list
+        perfList = np.append(perfList, ewmPerf)
+    return heapq.nlargest(n, perfList)
 
 """ Return Feature Vector """ 
 def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PTS_G'): 
@@ -218,9 +290,10 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
             com = featureParams['com']
 
             # compute performance of relevant dates & apply ewm
-            datesWindow = getDatesWindow(dates, i, window)
-            windowVals = getWindowVals(dfPlayer, datesWindow, metric)
-            ewm_windowVals = predictionMethods.applyEWMA(pd.Series(windowVals), param=com).values
+            ewm_windowVals = getEWMGamePerf(dfPlayer, dates, i, window, com=com, metric='PTS_G')
+            #datesWindow = getDatesWindow(dates, i, window)
+            #windowVals = getWindowVals(dfPlayer, datesWindow, metric)
+            #ewm_windowVals = predictionMethods.applyEWMA(pd.Series(windowVals), param=com).values
             
             # get most recent game performance 
             featureVal = ewm_windowVals[-1]
@@ -236,7 +309,7 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
 
             # get opponent on game date
             currDate = dates[i]
-            oppTeam = dfPlayer.loc[dfPlayer.gmDate == currDate, 'opptAbbr'].values[0]
+            oppTeam = getOppTeam(dfPlayer, currDate)
 
             # get average performance of opposing teams allowed by oppTeam & league
             oppTeamOppPerf = getTeamOppPerf(teamsDict, oppTeam, currDate, window) 
@@ -266,6 +339,26 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
             featureVec = np.append(featureVec, featureVal) 
             num_hsvt_features += 1
 
+        # get teammate information 
+        if feature == 'teammates': 
+            # get parameters
+            window = featureParams['window']
+            com = featureParams['com']
+            n = featureParams['n']
+
+            # get current date and player
+            currDate = dates[i]
+            player = dfPlayer.Player.values[0]
+
+            # get current team and teammates
+            team = getTeam(dfPlayer, currDate)
+            teammates = getTeammates(dfLeague, player, team, currDate)
+            featureVal = topNTeammatesPerf(dfLeague, teammates, currDate, window, n, com, metric)
+
+            # append to feature vector
+            featureVec = np.append(featureVec, featureVal)
+            num_hsvt_features += 1
+
         # get team location on game date
         if feature == 'teamLoc':
             # get team location on game date
@@ -275,9 +368,7 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
             # append to feature vector
             featureVec = np.append(featureVec, featureVal) 
 
-        # get teammate information 
-        #if feature == 'teammates': 
-    return featureVec
+    return featureVec, num_hsvt_features
 
 """ Update Label """ 
 def updateLabel(label, dates, i, dfPlayer, labelsDict, metric='PTS_G', train=True): 
@@ -334,7 +425,7 @@ def getFeaturesLabels(infoDict, dataDict, featuresDict, labelsDict, modelDict):
     # iterate through every game
     for i in range(bufferWindow, len(dates)): 
         # construct feature
-        feature = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric)
+        feature, n = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric)
 
         # construct label 
         currDate = dates[i]
@@ -347,8 +438,8 @@ def getFeaturesLabels(infoDict, dataDict, featuresDict, labelsDict, modelDict):
 
     # unpack model info
     rank = modelDict['rank']
-    features = hsvt(features, rank=rank)
-    #featuresProj[:, :n] = hsvt(features[:, :n], rank=rank)
+    #features = hsvt(features, rank=rank)
+    features[:, :n] = hsvt(features[:, :n], rank=rank)
     return features, labels
 
 
@@ -389,6 +480,8 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
     # unpack model info
     rank = modelDict['rank']
     project = modelDict['project']
+    update = modelDict['update']
+    updatePeriod = modelDict['updatePeriod']
 
     # get player specific data (dataframe + dates played)
     dfPlayer = dfLeague[dfLeague.Player == player]
@@ -397,16 +490,18 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
     # initialize
     preds = np.array([])
     true = np.array([])
+    featuresUpdate = features.copy()
+    updateCount = 0
 
     # iterate through every game
     for i in range(bufferWindow, len(dates)): 
         # get gameday feature
-        feature = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric)
+        feature, n = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric)
 
         # project relevant features onto de-noised feature space
         if project:
-            feature = projectFeatures(features, feature)
-            #featureProj[:n] = projectFeatures(featuresProj[:, :n], featureProj[:n])
+            #feature = projectFeatures(features, feature)
+            feature[:n] = projectFeatures(features[:, :n], feature[:n])
 
         # get gameday forecast
         pred = sla.predict(feature.reshape(1, feature.shape[0]))[0]
@@ -417,6 +512,21 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
         currDate = dates[i]
         label = getGamePerf(dfPlayer, currDate, metric)
         true = np.append(true, label)
+
+        # update labels and features
+        featuresUpdate = np.vstack([featuresUpdate, feature])
+        labels = np.append(labels, label)
+        updateCount += 1
+
+        # update model
+        if update and (updateCount == updatePeriod): 
+            # retrain model
+            sla.fit(featuresUpdate, labels)
+
+            # reinitialize
+            features = featuresUpdate 
+            updateCount = 0
+
     return preds, true 
 
 

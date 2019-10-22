@@ -6,17 +6,111 @@ from sklearn import linear_model
 # dennis libraries
 from mrsc.src.predictions import predictionMethods, SLA
 
-""" hard singular value thresholding """ 
-def hsvt(X, rank): 
-    u, s, v = np.linalg.svd(X, full_matrices=False)
-    s[rank:].fill(0)
-    return np.dot(u*s, v)
 
-""" project feature onto de-noised feature space """
-def projectFeatures(featureMatrix, feature): 
-    regr = linear_model.LinearRegression(fit_intercept=False)
-    regr.fit(featureMatrix.T, feature)
-    return np.dot(featureMatrix.T, regr.coef_)
+""" Compute root mean squared error (l2-norm) """ 
+def rmse(pred, true): 
+    error = (pred - true) ** 2
+    return np.sqrt(np.mean(error))
+
+""" Compute mean absolute error (l1-norm) """
+def mae(pred, true):
+    return np.mean(np.abs(pred - true))
+
+def errorWindowAvg(pred, true, windowSize, errorType='rmse'):
+    predWindow = getWindowAvg(pred, windowSize)
+    trueWindow = getWindowAvg(true, windowSize)
+    if errorType == 'mae':
+        error = mae(predWindow, trueWindow)
+    else:
+        error = rmse(predWindow, trueWindow)
+    return error
+
+""" compute window average """ 
+def getWindowAvg(series, window): 
+    seriesWindow = np.array([])
+    for i in range(0, len(series)-window, window): 
+        windowAvg = np.mean(series[i: i+window])
+        seriesWindow = np.append(seriesWindow, windowAvg)
+    return seriesWindow 
+
+def getParamDicts(paramDict, infoDict, featureTypes, labelType):
+    # features
+    statsWindow = paramDict['statsWindow']
+    statsCom = paramDict['statsCom']
+    gmWindow = paramDict['gmWindow']
+    gmCom = paramDict['gmCom']
+    opptWindow = paramDict['opptWindow']
+    teamWindow = paramDict['teamWindow']
+    teamCom = paramDict['teamCom']
+    n = paramDict['n']
+    
+    # model
+    rank = paramDict['rank']
+    project = paramDict['project']
+    update = paramDict['update']
+    updatePeriod = paramDict['updatePeriod']
+    
+    # sla 
+    slaType = paramDict['type']
+    alpha = paramDict['alpha']
+    radius = paramDict['radius']
+    n_neighbors = paramDict['n_neighbors']
+    weights = paramDict['weights']
+    algo = paramDict['algo']
+    leaf_size = paramDict['leaf_size']
+    
+    # create features dictionaries
+    featuresDict = dict()
+    for feature in featureTypes:
+        if feature == 'std': 
+            featuresDict.update({'std': {'window': statsWindow}})
+        if feature == 'mean':
+            featuresDict.update({'mean': {'window': statsWindow}})
+        if feature == 'ewm': 
+            featuresDict.update({'ewm': {'window': statsWindow, 'com': statsCom}})
+        if feature == 'gmOutcome': 
+            featuresDict.update({'gmOutcome': {'window': gmWindow, 'com': gmCom}})
+        if feature == 'oppt': 
+            featuresDict.update({'oppt': {'window': opptWindow}})
+        if feature == 'teamLoc':
+            featuresDict.update({'teamLoc': {}})
+        if feature == 'teammates': 
+            featuresDict.update({'teammates': {'window': teamWindow, 'n': n, 'com': teamCom}})
+            
+    # create labels dictionary     
+    if labelType == 'mean':
+        labelsDict = {'mean': {'window': statsWindow}}
+    elif labelType == 'ewm':
+        labelsDict = {'ewm': {'window': statsWindow, 'com': statsCom}}
+    else:
+        labelsDict = {'none': {}}
+    
+    # create model dictionary
+    modelDict = {'rank': rank, 'project': project, 'update': update, 'updatePeriod': updatePeriod}
+    
+    # create info dictionary
+    #bufferWindow = np.max([statsWindow, gmWindow, opptWindow])
+    bufferWindow = statsWindow
+    infoDict.update({'buffer': bufferWindow})
+    
+    # create sla dictionary
+    if slaType == 'knn':
+        params = {'n_neighbors': n_neighbors, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size}
+    elif slaType == 'rnn':
+        params = {'radius': radius, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size}
+    elif slaType == 'ridge':
+        params = {'alpha': alpha}
+    else:
+        params = {}
+    slaDict = {'type': slaType, 'params': params}
+    
+    return infoDict, featuresDict, labelsDict, modelDict, slaDict
+
+
+
+
+
+
 
 """ Forecast via Supervised Learning Method """
 def forecastSLA(df, teamsDict, player, window, sla, featureMatrix,

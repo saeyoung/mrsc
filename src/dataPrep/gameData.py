@@ -51,3 +51,41 @@ def splitDFs(df, trainDates, cvDates, testDates):
     
     return dfTrain, dfCV, dfTest
 
+
+def saveTeamsDict(dfTrain, dfCV, dfTest, dfTrainCV, teams): 
+    print("train...")
+    teamsTrainDict = SLA.getTeamOppPTSDict(dfTrain, teams)
+    print("CV...")
+    teamsCVDict = SLA.getTeamOppPTSDict(dfCV, teams)
+    print("Test...")
+    teamsTestDict = SLA.getTeamOppPTSDict(dfTest, teams)
+    print("TrainCV...")
+    teamsTrainCVDict = SLA.getTeamOppPTSDict(dfTrainCV, teams)
+    print("Done!")
+
+    with open('teamsTrainDict.pickle', 'wb') as handle:
+        pickle.dump(teamsTrainDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
+    with open('teamsCVDict.pickle', 'wb') as handle:
+        pickle.dump(teamsCVDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open('teamsTestDict.pickle', 'wb') as handle:
+        pickle.dump(teamsTestDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open('teamsTrainCVDict.pickle', 'wb') as handle:
+        pickle.dump(teamsTrainCVDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def loadTeamsDict():
+    with open('teamsTrainDict.pickle', 'rb') as handle:
+        teamsTrainDict = pickle.load(handle)
+
+    with open('teamsCVDict.pickle', 'rb') as handle:
+        teamsCVDict = pickle.load(handle)
+
+    with open('teamsTestDict.pickle', 'rb') as handle:
+        teamsTestDict = pickle.load(handle)
+
+    with open('teamsTrainCVDict.pickle', 'rb') as handle:
+        teamsTrainCVDict = pickle.load(handle)
+    
+    return teamsTrainDict, teamsCVDict, teamsTestDict, teamsTrainCVDict
