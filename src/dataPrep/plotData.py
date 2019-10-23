@@ -4,50 +4,51 @@ import numpy as np
 import pandas as pd 
 from sklearn.metrics import r2_score
 
-def plotGame(seriesDict, trueDict, player, errorType='rmse', folderName='', metric='PTS_G', saveFig=False): 
+# dennis libraries
+from mrsc.src.predictions import gamePredictions
+
+def plotGame(seriesDict, trueDict, player, alpha=1, errorType='rmse', folderName='', metric='PTS_G', saveFig=False): 
     # unpack 
     true = trueDict['data']
     slaType = seriesDict['type']
     series = seriesDict['data']
-    
-    # compute error and correlation
+
+    # compute errors restricted to games within bounds
+    true_alpha, series_alpha = gamePredictions.get_alpha_scores(true, series, alpha)
+
+    # compute annual errors
+    error_mean = np.abs(np.mean(true_alpha) - np.mean(series_alpha))
+    error_mean = error_mean.round(1)
+
+    # compute game errors
     if errorType == 'mae':
-        error = mae(true, series).round(1)
-    elif errorType == 'r2': 
-        error = r2_score(true, series).round(1)
+        error = mae(true_alpha, series_alpha)
+    elif errorType == 'r2':
+        error = r2_score(true_alpha, series_alpha)
     else: 
-        error = rmse(true, series).round(1)
-    corr = pd.Series(series).corr(pd.Series(true)).round(2)
-    
-    # plot means
+        error = rmse(true_alpha, series_alpha)
+    error = error.round(1)
+
+    # compute correlation
+    corr = pd.Series(series_alpha).corr(pd.Series(true_alpha))
+    corr = corr.round(2)
+
+    # plot true means    
     plt.figure()
     true_mean = np.mean(true)
     series_mean = np.mean(series)
-    error_mean = np.abs(true_mean - series_mean).round(1)
-    plt.axhline(true_mean, label='true mean', linewidth=1.2)
-    plt.axhline(series_mean, label='{} mean: err={}'.format(slaType, error_mean,  linewidth=1.2))
-    
-    # plot game by game predictions
-    plt.plot(true, label='true', marker='.')
-    plt.plot(series, label='{}: {}={}, corr={}'.format(slaType, errorType, error, corr), marker='.')
-    
-    """plt.figure()
-                true_mean = np.mean(true)
-                series_mean = np.mean(series)
-                error_mean = np.abs(true_mean - series_mean).round(1)
-                plt.axhline(true_mean, label='true mean', color='lightskyblue', linewidth=1.2)
-                plt.axhline(series_mean, label='{} mean: err={}'.format(slaType, error_mean, color='sandybrown', linewidth=1.2))
+    plt.axhline(true_mean, label='true mean', color='lightskyblue', linewidth=1.2)
+    plt.axhline(series_mean, label='{} mean: err={}'.format(slaType, error_mean), color='sandybrown', linewidth=1.2)
                 
-                # plot game by game predictions
-                plt.plot(true, label='true', marker='.', color='steelblue')
-                plt.plot(series, label='{}: {}={}, corr={}'.format(slaType, errorType, error, corr), marker='.', color='darkorange')
-                """
+    # plot game by game predictions
+    plt.plot(true, label='true', marker='.', color='steelblue')
+    plt.plot(series, label='{}: {}={}, corr={}'.format(slaType, errorType, error, corr), marker='.', color='darkorange')
+                
     plt.ylabel(metric)
     plt.xlabel('Games')
     plt.title('{}'.format(player))
-    #plt.legend(loc='best', prop={'size': 8})
+    plt.legend(loc='best', prop={'size': 8})
     plt.show() 
-
 
 """ Plot moving average """ 
 def plotMA(pred, true, windowSize, player, folderName='', metric='PTS_G', saveFig=False): 
@@ -79,34 +80,6 @@ def rmse(pred, true):
 def mae(pred, true):
     return np.mean(np.abs(pred - true))
 
-""" Plot Results """ 
-def plotGame(seriesDict, trueDict, windowSize, player, errorType='rmse', folderName='', metric='PTS_G', saveFig=False): 
-    # unpack true data
-    true = trueDict['data']
-
-    # plot true
-    plt.figure()
-    plt.plot(true, label='true', marker='.')
-    plt.axhline(np.mean(true), label='true mean')
-
-    # plot series
-    slaType = seriesDict['type']
-    series = seriesDict['data']
-    if errorType == 'mae':
-        error = mae(true, series).round(2)
-    elif errorType == 'r2': 
-        error = r2_score(true, series).round(2)
-    else: 
-        error = rmse(true, series).round(2)
-    corr = pd.Series(series).corr(pd.Series(true)).round(2)
-    plt.plot(series, label='{}'.format(slaType), marker='.')
-    plt.axhline(np.mean(series), label='{} mean'.format(slaType))
-    plt.ylabel(metric)
-    plt.xlabel('Games')
-    plt.title('{}: window={}, {}={}, corr={}'.format(player, windowSize, errorType, error, corr))
-    plt.legend(loc='best')
-    plt.show() 
-
 """ Plot window average (fixed) """ 
 def plotWindowAvg(seriesDict, trueDict, windowSize, player, errorType='rmse', folderName='', metric='PTS_G', saveFig=False): 
     # unpack true data
@@ -137,35 +110,6 @@ def plotWindowAvg(seriesDict, trueDict, windowSize, player, errorType='rmse', fo
     plt.legend(loc='best')
     plt.show() 
 
-""" Plot window average (fixed) """ 
-"""def plotWindowAvg(seriesDict, trueDict, windowSize, player, errorType='rmse', folderName='', metric='PTS_G', saveFig=False): 
-    # unpack true data
-    true = trueDict['data']
-
-    # compute window
-    trueWindow = getWindowAvg(true, windowSize)
-
-    # plot true
-    plt.figure()
-    plt.plot(trueWindow, label='true', marker='.')
-
-    # plot series
-    for s, sdict in seriesDict.items(): 
-        series = sdict['data']
-        seriesWindow = getWindowAvg(series, windowSize)
-        if errorType == 'mae':
-            error = mae(trueWindow, seriesWindow).round(2)
-        elif errorType == 'r2': 
-            error = r2_score(trueWindow, seriesWindow).round(2)
-        else: 
-            error = rmse(trueWindow, seriesWindow).round(2)
-        corr = pd.Series(seriesWindow).corr(pd.Series(trueWindow)).round(2)
-        plt.plot(seriesWindow, label='{}: {}={}, corr={}'.format(s, errorType, error, corr), marker='.')
-    plt.ylabel(metric)
-    plt.xlabel('Games')
-    plt.title('{}: window = {}, errType = {}'.format(player, windowSize, errorType))
-    plt.legend(loc='best')
-    plt.show() """
 
 def getWindowAvg(series, window): 
     seriesWindow = np.array([])

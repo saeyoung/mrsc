@@ -21,6 +21,32 @@ def mae(pred, true):
 def corr(pred, true): 
     return pd.Series(pred).corr(pd.Series(true))
 
+def get_alpha_scores(true, series, alpha=2):
+    # get annual information to compute lower and upper bounds
+    true_mean = np.mean(true)
+    true_std = np.std(true)
+    upper = true_mean + alpha * true_std
+    lower = true_mean - alpha * true_std
+
+    # get indices where games lie within [lower, upper]
+    idx = np.where(np.logical_and(true >= lower, true <= upper))
+
+    # restrict attention to games within [lower, upper]
+    true_alpha = true[idx]
+    series_alpha = series[idx]
+
+    return true_alpha, series_alpha
+
+""" return average error over window """ 
+def error(pred, true, errorType='rmse'):
+    if errorType == 'mae':
+        error = mae(true, pred)
+    elif errorType == 'r2': 
+        error = r2_score(true, pred)
+    else:
+        error = rmse(true, pred)
+    return error
+
 """ return average error over window """ 
 def errorWindowAvg(pred, true, windowSize, errorType='rmse'):
     predWindow = getWindowAvg(pred, windowSize)
@@ -65,11 +91,10 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     radius = paramDict['radius']
     n_neighbors = paramDict['n_neighbors']
     weights = paramDict['weights']
+    p = paramDict['p']
     algo = paramDict['algo']
     leaf_size = paramDict['leaf_size']
-    #f_type = paramDict['f_type']
-    #f_params = paramDict['f_params']
-    tau = paramDict['tau']
+    kernel = paramDict['kernel']
     fit_intercept = paramDict['fit_intercept']
     
     # create features dictionaries
@@ -110,14 +135,13 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     
     # create sla dictionary
     if slaType == 'knn':
-        params = {'n_neighbors': n_neighbors, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size}
+        params = {'n_neighbors': n_neighbors, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size, 'p': p}
     elif slaType == 'rnn':
         params = {'radius': radius, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size}
     elif slaType == 'ridge':
         params = {'alpha': alpha}
     elif slaType == 'lwr':
-        params = {'tau': tau, 'fit_intercept': fit_intercept}
-        #params = {'f_type': f_type, 'f_params': f_params, 'fit_intercept': fit_intercept}
+        params = {'kernel': kernel, 'alpha': alpha, 'fit_intercept': fit_intercept}
     else:
         params = {}
     slaDict = {'type': slaType, 'params': params}  

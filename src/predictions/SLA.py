@@ -18,35 +18,12 @@ class SLAForecast:
         self.model = []
         
     def fit(self, featureMatrix, labels):
-        # ridge regression
-        if self.method.lower() == 'ridge': 
-            alpha = self.params['alpha']
-            self.model = linear_model.Ridge(fit_intercept=False, alpha=alpha)
-
-        # random forest regression
-        elif self.method.lower() == 'randomforest':
-            n_estimators = self.params['n_estimators']
-            max_depth = self.params['max_depth']
-            min_samples_split = self.params['min_samples_split']
-            min_samples_leaf = self.params['min_samples_leaf']
-            self.model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, 
-                min_samples_leaf=min_samples_leaf, min_samples_split = min_samples_split)
-
-        # support vector regression
-        elif self.method.lower() == 'svr': 
-            C = self.params['C']
-            gamma = self.params['gamma']
-            degree = self.params['degree']
-            epsilon = self.params['epsilon']
-            self.model = SVR(C=C, gamma=gamma, degree=degree, epsilon=epsilon)
-
         # locally weighted regression
-        elif self.method.lower() == 'lwr': 
-            #f_type = self.params['f_type']
-            #f_params = self.params['f_params']
-            tau = self.params['tau']
+        if self.method.lower() == 'lwr': 
+            kernel = self.params['kernel']
             fit_intercept = self.params['fit_intercept']
-            self.model = local_regression.LWRegressor(tau=tau, fit_intercept=fit_intercept) 
+            alpha = self.params['alpha']
+            self.model = local_regression.LWRegressor(kernel=kernel, alpha=alpha, fit_intercept=fit_intercept) 
 
         # radius neighbors regression
         elif self.method.lower() == 'rnn':
@@ -63,8 +40,9 @@ class SLAForecast:
             weights = self.params['weights']
             algo = self.params['algo']
             leaf_size = self.params['leaf_size']
+            p = self.params['p']
             self.model = KNeighborsRegressor(n_neighbors=n_neighbors, weights=weights,
-                                                algorithm=algo, leaf_size=leaf_size)
+                                                algorithm=algo, leaf_size=leaf_size, p=p)
 
         # linear regression
         else: 
@@ -90,6 +68,32 @@ def projectFeatures(featureMatrix, feature):
     regr = linear_model.LinearRegression(fit_intercept=False)
     regr.fit(featureMatrix.T, feature)
     return np.dot(featureMatrix.T, regr.coef_)
+
+""" Create dictionary of points against team by position """ 
+def getTeamPosPTSDict(dfMaster, teams): 
+    positions = ['PG', 'SG', 'C', 'PF', 'SF']
+    teamsDict = {team: pd.DataFrame() for team in teams} 
+    for team in teams: 
+        # get team info
+        df = dfMaster.loc[dfMaster.teamAbbr == team]
+        dates = df.gmDate.unique()
+
+        # build dataframe dates
+        dfTeam = pd.DataFrame(columns=['gmDate', 'OppTeam'] + positions)
+        dfTeam.gmDate = dates
+
+        for date in dates: 
+            # get opposing team info
+            oppTeam = df.loc[df.gmDate == date, 'opptAbbr'].values[0]
+            dfOpp = dfMaster.loc[dfMaster.teamAbbr == oppTeam]
+
+            # input points scored by opposing team
+            dfTeam.loc[dfTeam.gmDate == date, 'OppTeam'] = oppTeam
+            for position in positions: 
+                dfTeam.loc[dfTeam.gmDate == date, position] = getPosPerf(dfOpp, 
+                                                                date, position)
+        teamsDict[team] = dfTeam
+    return teamsDict
 
 """ Create dictionary of points scored by team and against team """ 
 def getTeamOppPTSDict(dfMaster, teams): 
@@ -123,6 +127,11 @@ def getTeamPerf(dfTeam, date, metric='PTS_G'):
     df = dfTeam.loc[dfTeam.gmDate == date]
     return df[metric].sum() 
 
+""" Get points scored by position """ 
+def getPosPerf(dfTeam, date, position, metric='PTS_G'):
+    df = dfTeam.loc[(dfTeam.gmDate == date) & (dfTeam.playPos == position)]
+    return df[metric].sum()
+
 """ Get points per game scored by team's opposition """ 
 def getTeamOppPerf(teamsDict, team, date, window=-1, metric='OppPTS'): 
     # get team data
@@ -137,7 +146,7 @@ def getTeamOppPerf(teamsDict, team, date, window=-1, metric='OppPTS'):
     return oppPerf 
 
 """ Get points per game scored by team's opposition averaged across all teams """ 
-def getLeagueOppPerf(teamsDict, date, window, metric='OppPTS'):
+def getLeagueOppPerf(teamsDict, date, window=-1, metric='OppPTS'):
     league = list(teamsDict.keys())
     leagueOppPerf = np.array([])
     for team in league: 
@@ -202,11 +211,15 @@ def getTeamLoc(df, date):
 def getGamePerf(df, date, metric='PTS_G'): 
     return df.loc[df.gmDate == date, metric].values[0]
 
+""" Get season performance thus far (including date) """
+def getSeasonPerf(df, date, metric='PTS_G'):
+    return df.loc[df.gmDate <= date, metric].values
+
 """ Get Window Values based on metric """ 
 def getWindowVals(df, dates, metric='PTS_G'): 
     return df.loc[df.gmDate.isin(dates), metric].values
 
-""" get dates within window size """ 
+""" get dates within window size (up to but NOT including dates[i])"""
 def getDatesWindow(dates, i, window):
     return dates[i-window: i] if i >= window else dates[:i]
 
@@ -242,11 +255,12 @@ def topNTeammatesPerf(df, teammates, date, window, n=2, com=0.3, metric='PTS_G')
         windowVals = getWindowVals(dfPlayer, datesWindow, metric) 
         
         # get ewm performance
-        ewmPerf = predictionMethods.applyEWMA(pd.Series(windowVals), param=com).values
-        ewmPerf = ewmPerf[-1] if ewmPerf.size else 0
+        #playerPerf = predictionMethods.applyEWMA(pd.Series(windowVals), param=com).values
+        #playerPerf = playerPerf[-1] if playerPerf.size else 0
+        playerPerf = np.mean(windowVals) if windowVals.size else 0 
         
         # append to performance list
-        perfList = np.append(perfList, ewmPerf)
+        perfList = np.append(perfList, playerPerf)
     return heapq.nlargest(n, perfList)
 
 """ Return Feature Vector """ 
@@ -372,8 +386,10 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
             windowVals = getWindowVals(dfPlayer, datesWindow, metric)
 
             # get difference in performances
-            #featureVal = prevGmPerf - np.mean(windowVals)
-            featureVal = prevGmPerf - windowVals[-1]
+            featureVal = prevGmPerf - np.mean(windowVals) #seems to be bad
+            #ewm_windowVals = predictionMethods.applyEWMA(pd.Series(windowVals), param=com).values
+            #featureVal = prevGmPerf - ewm_windowVals[-1]
+            #featureVal = prevGmPerf - windowVals[-1]
 
             # append to feature vector
             featureVec = np.append(featureVec, featureVal) 
@@ -587,7 +603,29 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
 
 
 
+"""
+        
+        # ridge regression
+        if self.method.lower() == 'ridge': 
+            alpha = self.params['alpha']
+            self.model = linear_model.Ridge(fit_intercept=False, alpha=alpha)
 
+        # random forest regression
+                                elif self.method.lower() == 'randomforest':
+                                    n_estimators = self.params['n_estimators']
+                                    max_depth = self.params['max_depth']
+                                    min_samples_split = self.params['min_samples_split']
+                                    min_samples_leaf = self.params['min_samples_leaf']
+                                    self.model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, 
+                                        min_samples_leaf=min_samples_leaf, min_samples_split = min_samples_split)
+                        
+                                # support vector regression
+                                elif self.method.lower() == 'svr': 
+                                    C = self.params['C']
+                                    gamma = self.params['gamma']
+                                    degree = self.params['degree']
+                                    epsilon = self.params['epsilon']
+                                    self.model = SVR(C=C, gamma=gamma, degree=degree, epsilon=epsilon)"""
 
 """ Get points per game scored by team's opposition """ 
 """ def getTeamOppPerf(teamsDict, team, date, window=-1, metric='OppPTS'): 

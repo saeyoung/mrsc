@@ -3,6 +3,9 @@ import pandas as pd
 import copy
 import pickle
 
+# dennis libraries
+from mrsc.src.predictions import SLA
+
 """ Read in Games Data and create DataFrame """
 def createGameData():
     df = pd.read_csv("../data/nba-enhanced-stats/2012-18_playerBoxScore.csv")
@@ -22,7 +25,7 @@ def createGameData():
     df = pd.concat([date_col, df], axis=1)
 
     # relevant columns
-    cols = ['date', 'gmDate', 'playDispNm', 'teamAbbr', 'teamLoc', 'teamRslt', 'teamDayOff', 'playStat', 'playMin', 'opptAbbr', 'opptDayOff']
+    cols = ['date', 'gmDate', 'playDispNm', 'teamAbbr', 'teamLoc', 'teamRslt', 'teamDayOff', 'playStat', 'playPos', 'playMin', 'opptAbbr', 'opptDayOff']
     df_games = df[cols + year_metrics]
     df_games = df_games.rename(columns={"playDispNm": "Player"})
 
@@ -50,6 +53,48 @@ def splitDFs(df, trainDates, cvDates, testDates):
     dfTest = df[(df.gmDate >= d1) & (df.gmDate <= d2)]
     
     return dfTrain, dfCV, dfTest
+
+
+def saveTeamsPosDict(dfTrain, dfCV, dfTest, dfTrainCV, teams): 
+    print("train...")
+    teamsPosTrainDict = SLA.getTeamPosPTSDict(dfTrain, teams)
+    print("CV...")
+    teamsPosCVDict = SLA.getTeamPosPTSDict(dfCV, teams)
+    print("Test...")
+    teamsPosTestDict = SLA.getTeamPosPTSDict(dfTest, teams)
+    print("TrainCV...")
+    teamsPosTrainCVDict = SLA.getTeamPosPTSDict(dfTrainCV, teams)
+    print("Done!")
+
+    with open('teamsPosTrainDict.pickle', 'wb') as handle:
+        pickle.dump(teamsPosTrainDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
+    with open('teamsPosCVDict.pickle', 'wb') as handle:
+        pickle.dump(teamsPosCVDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open('teamsPosTestDict.pickle', 'wb') as handle:
+        pickle.dump(teamsPosTestDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open('teamsPosTrainCVDict.pickle', 'wb') as handle:
+        pickle.dump(teamsPosTrainCVDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def loadTeamsPosDict():
+    with open('teamsPosTrainDict.pickle', 'rb') as handle:
+        teamsPosTrainDict = pickle.load(handle)
+
+    with open('teamsPosCVDict.pickle', 'rb') as handle:
+        teamsPosCVDict = pickle.load(handle)
+
+    with open('teamsPosTestDict.pickle', 'rb') as handle:
+        teamsPosTestDict = pickle.load(handle)
+
+    with open('teamsPosTrainCVDict.pickle', 'rb') as handle:
+        teamsPosTrainCVDict = pickle.load(handle)
+
+    return teamsPosTrainDict, teamsPosCVDict, teamsPosTestDict, teamsPosTrainCVDict
+
+
+
 
 
 def saveTeamsDict(dfTrain, dfCV, dfTest, dfTrainCV, teams): 
