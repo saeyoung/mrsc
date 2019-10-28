@@ -13,6 +13,10 @@ def plotGame(seriesDict, trueDict, player, alpha=1, errorType='rmse', folderName
     slaType = seriesDict['type']
     series = seriesDict['data']
 
+    # upper and lower bounds
+    upper = np.mean(true) + alpha * np.std(true)
+    lower = np.mean(true) - alpha * np.std(true)
+
     # compute errors restricted to games within bounds
     true_alpha, series_alpha = gamePredictions.get_alpha_scores(true, series, alpha)
 
@@ -40,6 +44,10 @@ def plotGame(seriesDict, trueDict, player, alpha=1, errorType='rmse', folderName
     plt.axhline(true_mean, label='true mean', color='lightskyblue', linewidth=1.2)
     plt.axhline(series_mean, label='{} mean: err={}'.format(slaType, error_mean), color='sandybrown', linewidth=1.2)
                 
+    # plot bounds
+    plt.axhline(upper, color='lightgrey', linestyle='--', linewidth=1.0)
+    plt.axhline(lower, color='lightgrey', linestyle='--', linewidth=1.0)
+    
     # plot game by game predictions
     plt.plot(true, label='true', marker='.', color='steelblue')
     plt.plot(series, label='{}: {}={}, corr={}'.format(slaType, errorType, error, corr), marker='.', color='darkorange')

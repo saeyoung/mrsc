@@ -4,7 +4,7 @@ import copy
 import pickle
 
 # dennis libraries
-from mrsc.src.predictions import SLA
+from mrsc.src.predictions import SLA, gamePredictions
 
 """ Read in Games Data and create DataFrame """
 def createGameData():
@@ -53,6 +53,37 @@ def splitDFs(df, trainDates, cvDates, testDates):
     dfTest = df[(df.gmDate >= d1) & (df.gmDate <= d2)]
     
     return dfTrain, dfCV, dfTest
+
+def savePlayerTeamDict(dfTrain, dfCV, dfTest, players, window=3, n=2, com=0.2, metric='PTS_G'):
+    print("train...")
+    playersTrainDict = SLA.getPlayerTeammatesDict(dfTrain, players, window, n, com,  metric)
+    print("CV...")
+    playersCVDict = SLA.getPlayerTeammatesDict(dfCV, players, window, n, com,  metric)
+    print("Test...")
+    playersTestDict = SLA.getPlayerTeammatesDict(dfTest, players, window, n, com,  metric)
+    print("Done!")
+
+    with open('playersTrainDict.pickle', 'wb') as handle:
+        pickle.dump(playersTrainDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
+    with open('playersCVDict.pickle', 'wb') as handle:
+        pickle.dump(playersCVDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open('playersTestDict.pickle', 'wb') as handle:
+        pickle.dump(playersTestDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def loadPlayersDict():
+    with open('playersTrainDict.pickle', 'rb') as handle:
+        playersTrainDict = pickle.load(handle)
+
+    with open('playersCVDict.pickle', 'rb') as handle:
+        playersCVDict = pickle.load(handle)
+
+    with open('playersTestDict.pickle', 'rb') as handle:
+        playersTestDict = pickle.load(handle)
+
+    return playersTrainDict, playersCVDict, playersTestDict
+
 
 
 def saveTeamsPosDict(dfTrain, dfCV, dfTest, dfTrainCV, teams): 

@@ -75,8 +75,6 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     gmWindow = paramDict['gmWindow']
     gmCom = paramDict['gmCom']
     opptWindow = paramDict['opptWindow']
-    teamWindow = paramDict['teamWindow']
-    teamCom = paramDict['teamCom']
     n = paramDict['n']
     
     # model
@@ -88,11 +86,9 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     # sla 
     slaType = paramDict['type']
     alpha = paramDict['alpha']
-    radius = paramDict['radius']
     n_neighbors = paramDict['n_neighbors']
     weights = paramDict['weights']
     p = paramDict['p']
-    algo = paramDict['algo']
     leaf_size = paramDict['leaf_size']
     kernel = paramDict['kernel']
     fit_intercept = paramDict['fit_intercept']
@@ -113,7 +109,7 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
         if feature == 'delta': 
             featuresDict.update({'delta': {'window': statsWindow, 'com': statsCom}})
         if feature == 'teammates': 
-            featuresDict.update({'teammates': {'window': teamWindow, 'n': n, 'com': teamCom}})
+            featuresDict.update({'teammates': {'window': statsWindow, 'n': n, 'com': statsCom}})
         if feature == 'teamLoc':
             featuresDict.update({'teamLoc': {}})
             
@@ -122,6 +118,8 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
         labelsDict = {'mean': {'window': statsWindow}}
     elif labelType == 'ewm':
         labelsDict = {'ewm': {'window': statsWindow, 'com': statsCom}}
+    elif labelType == 'raw':
+        labelsDict = {'raw': {}}
     else:
         labelsDict = {'none': {}}
     
@@ -135,9 +133,9 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     
     # create sla dictionary
     if slaType == 'knn':
-        params = {'n_neighbors': n_neighbors, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size, 'p': p}
+        params = {'n_neighbors': n_neighbors, 'weights': weights, 'leaf_size': leaf_size, 'p': p}
     elif slaType == 'rnn':
-        params = {'radius': radius, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size}
+        params = {'radius': radius, 'weights': weights, 'leaf_size': leaf_size}
     elif slaType == 'ridge':
         params = {'alpha': alpha}
     elif slaType == 'lwr':
