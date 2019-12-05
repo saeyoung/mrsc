@@ -101,18 +101,18 @@ def approximate_rank(X, t = 0.99):
 
 #############################################
 
-# def hsvt(df, rank): 
-#     """
-#     Input:
-#         df: matrix of interest
-#         rank: rank of output matrix
-#     Output:
-#         thresholded matrix
-#     """
-#     u, s, v = np.linalg.svd(df, full_matrices=False)
-#     s[rank:].fill(0)
-#     vals = (np.dot(u*s, v))
-#     return pd.DataFrame(vals, index = df.index, columns = df.columns)
+def hsvt(df, rank): 
+    """
+    Input:
+        df: matrix of interest
+        rank: rank of output matrix
+    Output:
+        thresholded matrix
+    """
+    u, s, v = np.linalg.svd(df, full_matrices=False)
+    s[rank:].fill(0)
+    vals = (np.dot(u*s, v))
+    return pd.DataFrame(vals, index = df.index, columns = df.columns)
 
 
 
