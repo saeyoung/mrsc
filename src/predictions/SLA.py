@@ -115,7 +115,7 @@ def getPlayerTeammatesDict(dfLeague, players, window=3, n=2, com=0.2, metric='PT
 
     for player in players:
         print(player)
-        
+
         # get player information
         dfPlayer = dfLeague[dfLeague.Player == player]
         dates = dfPlayer.gmDate.values
@@ -139,8 +139,6 @@ def getPlayerTeammatesDict(dfLeague, players, window=3, n=2, com=0.2, metric='PT
         # update dictionary
         playersDict[player] = df
     return playersDict
-
-
 
 """ hard singular value thresholding """ 
 def hsvt(X, rank): 
@@ -357,7 +355,7 @@ def topNTeammatesPerf(df, teammates, date, window, n=2, com=0.3, metric='PTS_G')
     #return heapq.nlargest(n, perfList)
 
 """ Return Feature Vector """ 
-def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PTS_G'): 
+def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, teammatesDict, featuresDict, metric='PTS_G'): 
     # initialize
     featureVec = np.array([])
     num_hsvt_features = 0
@@ -399,13 +397,20 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
 
             # compute performance of relevant dates & apply ewm
             ewm_windowVals = getEWMGamePerf(dfPlayer, dates, i, window, com=com, metric='PTS_G')
-            
+
             # get most recent game performance 
-            featureVal = ewm_windowVals[-1]
+            featureVal = ewm_windowVals[-2:]
 
             # append to feature vector
             featureVec = np.append(featureVec, featureVal)
-            num_hsvt_features += 1
+            num_hsvt_features += 2
+            
+            """# get most recent game performance 
+                                                featureVal = ewm_windowVals[-1]
+                                    
+                                                # append to feature vector
+                                                featureVec = np.append(featureVec, featureVal)
+                                                num_hsvt_features += 1"""
 
         # get opponent information 
         if feature == 'oppt': 
@@ -446,22 +451,24 @@ def getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric='PT
 
         # get teammate information 
         if feature == 'teammates': 
-            # get parameters
-            window = featureParams['window']
-            com = featureParams['com']
+            # get parameters 
+            perfType = featureParams['perfType']
             n = featureParams['n']
 
             # get current date and player
             currDate = dates[i]
             player = dfPlayer.Player.values[0]
 
-            # get current team and teammates
-            team = getTeam(dfPlayer, currDate)
-            teammates = getTeammates(dfLeague, player, team, currDate)
-            featureVal = topNTeammatesPerf(dfLeague, teammates, currDate, window, n, com, metric)
+            # get teammate information
+            df = teammatesDict[player]
+
+            # get feature value
+            for i in range(n): 
+                col = perfType + str(i+1)
+                featureVal = df.loc[df.gmDate == currDate, col].values[0]
+                featureVec = np.append(featureVec, featureVal)
 
             # append to feature vector
-            featureVec = np.append(featureVec, featureVal)
             num_hsvt_features += n
 
         # get delta performance between previous game and prior performances
@@ -549,6 +556,7 @@ def getFeaturesLabels(infoDict, dataDict, featuresDict, labelsDict, modelDict):
     # unpack data
     dfLeague = dataDict['df']
     teamsDict = dataDict['teamsDict']
+    teammatesDict = dataDict['teammatesDict']
 
     # get player specific data (dataframe + dates played)
     dfPlayer = dfLeague[dfLeague.Player == player]
@@ -561,7 +569,7 @@ def getFeaturesLabels(infoDict, dataDict, featuresDict, labelsDict, modelDict):
     # iterate through every game
     for i in range(bufferWindow+1, len(dates)): 
         # construct feature
-        feature, n = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric)
+        feature, n = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, teammatesDict, featuresDict, metric)
 
         # construct label 
         currDate = dates[i]
@@ -647,6 +655,7 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
     # unpack data
     dfLeague = dataDict['df']
     teamsDict = dataDict['teamsDict']
+    teammatesDict = dataDict['teammatesDict']
 
     # unpack sla info
     sla = slaDict['model']
@@ -674,7 +683,7 @@ def testSLA(infoDict, dataDict, featuresDict, labelsDict, modelDict, slaDict):
     for i in range(bufferWindow+1, len(dates)): 
     #for i in range(bufferWindow, len(dates)): 
         # get gameday feature (raw)
-        feature, n = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, featuresDict, metric)
+        feature, n = getFeature(dates, i, dfPlayer, dfLeague, teamsDict, teammatesDict, featuresDict, metric)
 
         # project relevant features onto de-noised feature space if specified, else feature static
         featureProj = feature.copy()

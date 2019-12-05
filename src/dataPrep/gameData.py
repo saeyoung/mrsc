@@ -72,6 +72,14 @@ def savePlayerTeamDict(dfTrain, dfCV, dfTest, players, window=3, n=2, com=0.2, m
     with open('playersTestDict.pickle', 'wb') as handle:
         pickle.dump(playersTestDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+def savePlayerTeamDict_cv(dfTrainCV, players, window=3, n=2, com=0.2, metric='PTS_G'):
+    print("trainCV...")
+    playersTrainCVDict = SLA.getPlayerTeammatesDict(dfTrainCV, players, window, n, com,  metric)
+    print("Done!")
+
+    with open('playersTrainCVDict.pickle', 'wb') as handle:
+        pickle.dump(playersTrainCVDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 def loadPlayersDict():
     with open('playersTrainDict.pickle', 'rb') as handle:
         playersTrainDict = pickle.load(handle)
@@ -82,7 +90,10 @@ def loadPlayersDict():
     with open('playersTestDict.pickle', 'rb') as handle:
         playersTestDict = pickle.load(handle)
 
-    return playersTrainDict, playersCVDict, playersTestDict
+    with open('playersTrainCVDict.pickle', 'rb') as handle:
+        playersTrainCVDict = pickle.load(handle)
+
+    return playersTrainDict, playersCVDict, playersTestDict, playersTrainCVDict
 
 
 

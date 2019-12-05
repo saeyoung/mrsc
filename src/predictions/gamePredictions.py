@@ -75,6 +75,7 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     gmWindow = paramDict['gmWindow']
     gmCom = paramDict['gmCom']
     opptWindow = paramDict['opptWindow']
+    perfType = paramDict['perfType']
     n = paramDict['n']
     
     # model
@@ -109,7 +110,7 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
         if feature == 'delta': 
             featuresDict.update({'delta': {'window': statsWindow, 'com': statsCom}})
         if feature == 'teammates': 
-            featuresDict.update({'teammates': {'window': statsWindow, 'n': n, 'com': statsCom}})
+            featuresDict.update({'teammates': {'perfType': perfType, 'n': n}})
         if feature == 'teamLoc':
             featuresDict.update({'teamLoc': {}})
             
