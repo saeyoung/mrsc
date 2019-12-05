@@ -23,10 +23,12 @@ def ConvexRegression(X,y):
     
     def jac_f(w):
         return (-(2*((y-np.dot(X,w)).T).dot(X)))
+
     
     #Defining constraints
     def sum_con(w):
         return (np.ones((n)).dot(w) - 1)
+
     dic_sum_con = {"type":"eq","fun":sum_con}
     
     def positive_con(w):
@@ -37,5 +39,5 @@ def ConvexRegression(X,y):
     
     #Scipy optimization
     result = scipy.optimize.minimize(f, np.ones(n)/n, jac = jac_f,constraints = cons,method="SLSQP")
-    
+
     return result

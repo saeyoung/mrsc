@@ -79,6 +79,7 @@ def SLATrainTest(slaType, paramDict, dfTrain, dfTest, player, catFeatureTypes, m
         
     """ Train Stage """
     # construct (featureMatrix, labels)
+
     featureMatrix, labels = SLA.constructFeatureMatrixLabels(dfTrain, player,
                                                              windowSize, catFeatureTypes,
                                                              metric, ewmParam, n)
@@ -160,3 +161,4 @@ def forecastCombined(true, preds, numPredictors, learningRate=0.4):
         weights = predictionMethods.MWU(pred, obs, weights, learningRate)
         
     return predsCombined
+

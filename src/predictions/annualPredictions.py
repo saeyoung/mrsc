@@ -93,6 +93,3 @@ def getPredictions(targetPlayer, allPivotedTableDict, donor, pred_interval, metr
     
     return pred, test
 
-
-
-    

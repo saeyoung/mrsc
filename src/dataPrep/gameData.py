@@ -1,4 +1,6 @@
+
 from matplotlib import pyplot as plt
+
 import numpy as np
 import pandas as pd
 import copy
@@ -50,4 +52,3 @@ def splitDFs(df, trainDates, cvDates, testDates):
     dfTest = df[(df.gmDate >= d1) & (df.gmDate <= d2)]
     
     return dfTrain, dfCV, dfTest
-

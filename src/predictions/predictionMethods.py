@@ -9,7 +9,6 @@ from mrsc.src.predictions import cvxRegression
 def applyEWMA(series, param=0.5):
     return series.ewm(param).mean()
 
-
 """ Learn Weights for Predictions """
 def learnWeights(x, y, method='convex', alpha=0.1):
     if method.lower() == 'linear':
@@ -25,19 +24,16 @@ def learnWeights(x, y, method='convex', alpha=0.1):
         weights = regr.x
     return weights
 
-
 """ Multiplicative Weights Update (MWU) """
 def MWU(preds, obs, weights, learningRate=0.2):
     weights = weights * (1 - learningRate * predLoss(preds, obs))
     #weights = weights * np.exp(-learningRate * predLoss(preds, obs))
     return weights / np.sum(weights)
 
-
 """ Loss Function for MWU """
 def predLoss(pred, obs):
     return np.abs(pred - obs)
     #return (pred - obs) ** 2
-
 
 """ Combine Predictions into Single Prediction """
 def combinePredictions(predictions, weights): 

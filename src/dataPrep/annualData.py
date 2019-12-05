@@ -71,13 +71,14 @@ def get_active_players(stats_target, pred_year, buffer, min_games):
     return active.tolist()
 
 
+
 def createAnnualData(params, df_recent): 
     starting_year = params[0]
     min_games = params[1]
     min_years = params[2]
     pred_year = params[3]
     pred_interval = params[4]
-    
+
     """ players dataframe """
     players = pd.read_csv("../data/nba-players-stats/player_data.csv")
 
@@ -127,12 +128,14 @@ def createAnnualData(params, df_recent):
     # correct names in "stats" dataframe
     stats = fix_duplicates(stats, duplicate_names)
 
+
     # merge 'stats' and 'df_recent'
     stats = pd.merge(left=stats, right=df_recent, how='outer')
 
     # merge 'players' and 'stats'
     players = players.rename(columns={"name": "Player"})
     stats = pd.merge(stats, players, on='Player', how='left')
+
 
     # sanity check 
     stats = stats[(stats.Year >= stats.year_start) & (stats.Year <= stats.year_end)]
@@ -176,8 +179,10 @@ def createTargetDonors(params, stats):
     # edit 'year_count'
     stats_target = edit_year_count(stats_target)
 
+
     ## exclude players who played < 'min_games' in 'pred_year'
     #stats_target = stats_target[stats_target.G >= min_games]
+
 
     # create target dictionary of values
     allPivotedTableDict, allMetrics = prepareData(stats_target)
@@ -186,11 +191,8 @@ def createTargetDonors(params, stats):
     targetNames = get_active_players(stats_target, pred_year, min_years, min_games) 
     targetNames.sort()
 
+
     return donor, allPivotedTableDict, targetNames, stats
-
-
-
-
 
 
 
@@ -207,4 +209,6 @@ def getDictionaryGameByGame(data, metrics):
         data_pivot = pd.pivot_table(data, values=metrics[i], index="Player", columns = "gmDate")
         shifted_df = data_pivot.apply(lambda x: pd.Series(x.dropna().values), axis=1).fillna(np.nan)
         my_dict.update({metrics[i]: shifted_df})
+
     return my_dict
+

@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+
 from statsmodels.tsa.arima_model import ARIMA
 from sklearn import linear_model
 from sklearn.ensemble import RandomForestRegressor
@@ -10,6 +11,7 @@ import scipy.optimize
 # personal libraries
 from mrsc.src.predictions import predictionMethods
 from mrsc.src.predictions import gamePredictions
+
 
 """ Supervised Learning Forecasting """
 class SLAForecast: 
@@ -62,6 +64,7 @@ def getWindowFeatures(windowVals, ewmParam=0.5):
     feature = np.array([std_window, mean_window, ewm_window])
     return feature
 
+
 """ Get Top n Players on Team (wrt Metric) by Date """
 def getTopTeamPlayers(df, team, metric, date, n=2):
     # get team
@@ -73,7 +76,7 @@ def getTopTeamPlayers(df, team, metric, date, n=2):
     
     # get top n players thus far
     topPlayers = dfTeam.nlargest(n, columns=[metric])['Player'].values
-    
+
     return topPlayers
 
 """ Checks if any of Player's top teammates are missing on game(date) """
