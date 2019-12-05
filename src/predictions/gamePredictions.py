@@ -21,6 +21,32 @@ def mae(pred, true):
 def corr(pred, true): 
     return pd.Series(pred).corr(pd.Series(true))
 
+def get_alpha_scores(true, series, alpha=2):
+    # get annual information to compute lower and upper bounds
+    true_mean = np.mean(true)
+    true_std = np.std(true)
+    upper = true_mean + alpha * true_std
+    lower = true_mean - alpha * true_std
+
+    # get indices where games lie within [lower, upper]
+    idx = np.where(np.logical_and(true >= lower, true <= upper))
+
+    # restrict attention to games within [lower, upper]
+    true_alpha = true[idx]
+    series_alpha = series[idx]
+
+    return true_alpha, series_alpha
+
+""" return average error over window """ 
+def error(pred, true, errorType='rmse'):
+    if errorType == 'mae':
+        error = mae(true, pred)
+    elif errorType == 'r2': 
+        error = r2_score(true, pred)
+    else:
+        error = rmse(true, pred)
+    return error
+
 """ return average error over window """ 
 def errorWindowAvg(pred, true, windowSize, errorType='rmse'):
     predWindow = getWindowAvg(pred, windowSize)
@@ -49,8 +75,7 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     gmWindow = paramDict['gmWindow']
     gmCom = paramDict['gmCom']
     opptWindow = paramDict['opptWindow']
-    teamWindow = paramDict['teamWindow']
-    teamCom = paramDict['teamCom']
+    perfType = paramDict['perfType']
     n = paramDict['n']
     
     # model
@@ -62,13 +87,11 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     # sla 
     slaType = paramDict['type']
     alpha = paramDict['alpha']
-    radius = paramDict['radius']
     n_neighbors = paramDict['n_neighbors']
     weights = paramDict['weights']
-    algo = paramDict['algo']
+    p = paramDict['p']
     leaf_size = paramDict['leaf_size']
-    f_type = paramDict['f_type']
-    f_params = paramDict['f_params']
+    kernel = paramDict['kernel']
     fit_intercept = paramDict['fit_intercept']
     
     # create features dictionaries
@@ -87,7 +110,7 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
         if feature == 'delta': 
             featuresDict.update({'delta': {'window': statsWindow, 'com': statsCom}})
         if feature == 'teammates': 
-            featuresDict.update({'teammates': {'window': teamWindow, 'n': n, 'com': teamCom}})
+            featuresDict.update({'teammates': {'perfType': perfType, 'n': n}})
         if feature == 'teamLoc':
             featuresDict.update({'teamLoc': {}})
             
@@ -96,6 +119,8 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
         labelsDict = {'mean': {'window': statsWindow}}
     elif labelType == 'ewm':
         labelsDict = {'ewm': {'window': statsWindow, 'com': statsCom}}
+    elif labelType == 'raw':
+        labelsDict = {'raw': {}}
     else:
         labelsDict = {'none': {}}
     
@@ -109,13 +134,13 @@ def getParamDicts(paramDict, infoDict, featureTypes, labelType):
     
     # create sla dictionary
     if slaType == 'knn':
-        params = {'n_neighbors': n_neighbors, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size}
+        params = {'n_neighbors': n_neighbors, 'weights': weights, 'leaf_size': leaf_size, 'p': p}
     elif slaType == 'rnn':
-        params = {'radius': radius, 'weights': weights, 'algo': algo, 'leaf_size': leaf_size}
+        params = {'radius': radius, 'weights': weights, 'leaf_size': leaf_size}
     elif slaType == 'ridge':
         params = {'alpha': alpha}
     elif slaType == 'lwr':
-        params = {'f_type': f_type, 'f_params': f_params, 'fit_intercept': fit_intercept}
+        params = {'kernel': kernel, 'alpha': alpha, 'fit_intercept': fit_intercept}
     else:
         params = {}
     slaDict = {'type': slaType, 'params': params}  
