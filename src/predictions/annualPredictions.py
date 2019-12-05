@@ -92,3 +92,4 @@ def getPredictions(targetPlayer, allPivotedTableDict, donor, pred_interval, metr
     pred = np.array([pred1, pred2, pred3]).reshape((1,3))
     
     return pred, test
+
