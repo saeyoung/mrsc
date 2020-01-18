@@ -108,126 +108,84 @@ def random_p(n=2):
     p = np.array(p)/np.sum(p)
     return list(p)
 
+def get_p_tilda(uncompressed, n):
+    p_tilda=[]
+    for i in range(n):
+        p_i = np.mean(np.array(uncompressed)==i)
+        p_tilda.append(p_i)
+    return p_tilda
 
-def get_delta(x):
-    delta = np.zeros(len(x)-1)
-    delta[(x - x.shift(+1))[1:]>0] = 1
-    # 1 = increase
-    # 0 = not increase (decrease or stays the same)
-    delta = delta.astype(int)
-    return list(delta)
-
-def mean_thus_far(x):
-    mean=[]
-    for i in range(1, len(x)+1):
-        mean.append(x[:i].mean())
-    return np.array(mean)
-
-def std_thus_far(x):
-    std=[]
-    for i in range(1, len(x)+1):
-        std.append(x[:i].std())
-    return np.array(std)
-
-def get_gamma(y, x, alpha, window):
-    # y : refence to calculate the mean/std
-    # x : evaluate this based on men/std(y)
-    # window = rolling window size
-    # alpha = +- alpha * std
-    
-    roll_mean = y.rolling(window).mean()[window:]
-    roll_std = y.rolling(window).std()[window:]
-    thus_mean = mean_thus_far(y)[:window]
-    thus_std = std_thus_far(y)[:window]
-    thus_std[0]=0
-
-    # upper boundary (0, 1)
-    pre = thus_mean + thus_std * alpha
-    post = np.array(roll_mean + roll_std * alpha)
-    upper = np.hstack((pre, post))
-
-    # lower boundary (-1, 0)
-    pre = thus_mean - thus_std * alpha
-    post = np.array(roll_mean - roll_std * alpha)
-    lower = np.hstack((pre, post))
- 
-    gamma = np.zeros(len(x))
-    gamma[x > upper] = 1
-    gamma[x < lower] = -1
-
-    # 1 = above mean + alpha*std
-    # -1 = below mean - alpha*std
-    # 0 = between mean +- alpha*std
-    gamma = gamma.astype(int)
-    return list(gamma), upper, lower
-
-def regression_model_binary(size, number_of_p=30, verbose=False, plot=True):
-    ratio_list =[]
-    true_entropy = []
-    for p0 in np.linspace(1e-5,0.5,number_of_p):
-        p = [p0, 1-p0]
-        true_entropy.append(entropy(p))
-        uncompressed = multinomial(size, p)
-        uncompressed = list_to_string(uncompressed)
-        compressed = compress(uncompressed)
-        compression_ratio = len(compressed)/len(uncompressed)
-        ratio_list.append(compression_ratio)
+# Markov
+def get_P(n=2):
+    P = np.zeros((n,n))
+    for i in range(n):
+        p=[]
+        for j in range(n):
+            p.append(np.random.uniform(0,1,1)[0])
         
-        if verbose:
-            print("p : ", p)
-            print("theoretical entropy: ", entropy([p,1-p]))
-            print("compression ratio: ", compression_ratio)
-            print()
+        p = p/np.sum(p)
+        P[i,:] = p
+    return P
 
-    # linear regression
-    reg = LinearRegression().fit(np.array(true_entropy[:]).reshape(-1, 1), np.array(ratio_list[:]))
-    print("y = ax + b model")
-    print("a = ", reg.coef_)
-    print("b = ", reg.intercept_)
+def get_next(this_obs, P):
+    p = P[this_obs,:].flatten()
+    next_obs = multinomial(1,p)
+    return next_obs
 
-    if plot:
-        plt.plot(true_entropy, ratio_list, marker='.', label = "LZW compressor")
-        plt.plot(true_entropy, reg.predict(np.array(true_entropy).reshape(-1,1)), label="regression")
+def markov(len, P, initial = 0):
+    this_obs = initial
+    observations = [this_obs]
+    for i in range(len):
+        this_obs = get_next(this_obs, P)
+        observations.append(this_obs[0])
+    return observations
 
-        plt.title("Compression ratio - entropy regression model \n Bernoulli(p) with 0<p<0.5, size={}".format(size))
-        plt.xlabel("entropy")
-        plt.ylabel("compression ratio")
-        plt.legend()
-        plt.show()
+def entropy_rate(P):
+    # P = transition matrix (n by n)
+    # mu = asymptotic distribution (1 by n)
+    n = P.shape[0]
 
-    return reg, ratio_list, true_entropy
+    evals, evecs = eig(P.T)
+    loc = np.where(np.abs(evals - 1.) < 0.0001)[0]
+    stationary = evecs[:,loc].T
+    mu = stationary / np.sum(stationary)
+    mu = mu.real
 
-def get_entropy(size, compression_ratio, name="a random process", plot=True):
-    # mapping compression ratio to entropy
-    reg, ratio_list, true_entropy = regression_model_binary(size, number_of_p=30, verbose=False, plot=plot)
-    reg_inv = LinearRegression().fit(np.array(ratio_list[:]).reshape(-1, 1), np.array(true_entropy[:]))
-    ent = reg_inv.predict(np.array(compression_ratio).reshape(-1, 1))[0]
+    # print("evals")
+    # print(evals)
+    # print("evecs")
+    # print(evecs)
+    # print("stationary")
+    # print(stationary)
+    # print("mu")
+    # print(mu)
 
-    if plot:
-        plt.scatter(true_entropy, ratio_list, marker='.')
-        plt.plot(true_entropy, reg.predict(np.array(true_entropy).reshape(-1,1)), label="regression model", color="orange")
-        plt.axvline(ent, color="grey", alpha=0.5)
-        plt.axhline(compression_ratio, color="grey", alpha=0.5)
-        plt.scatter(ent, compression_ratio, color="red", label="estimated entropy ={}".format(ent.round(3)))
+    ent = 0
+    for i in range(n):
+        for j in range(n):
+            ent = ent - mu[:,i] * P[i,j] * log(P[i,j],2)
+    return ent[0]
 
-        plt.title("Estimated entropy of {} with Size {}".format(name, size))
-        plt.xlabel("entropy")
-        plt.ylabel("compression ratio")
-        plt.legend()
-        plt.show()
-    return ent
-
-def regression_model_ternary(size, number_of_p=30, verbose=False, plot=True):
+def regression_model(n, size, number_of_p=30, verbose=False, plot=True):
+    # n = the number of states
+    dict_size = n
+    dictionary = {i : chr(i) for i in range(dict_size)}
+    
     ratio_list =[]
     true_entropy = []
     
     probabilities=[]
     for i in range(number_of_p):
-        probabilities.append(random_p(3))
+        probabilities.append(random_p(n))
             
     for p in probabilities:
         true_entropy.append(entropy(p))
-        uncompressed = list_to_string(multinomial(size, p))
+        
+        uncompressed =str()        
+        uncomp_numbers = multinomial(size, p)
+        for i in uncomp_numbers:
+            uncompressed = uncompressed + dictionary[i]
+
         compressed = compress(uncompressed)
         compression_ratio = len(compressed)/len(uncompressed)
         ratio_list.append(compression_ratio)
@@ -239,7 +197,7 @@ def regression_model_ternary(size, number_of_p=30, verbose=False, plot=True):
             print()
 
     # linear regression
-    reg = LinearRegression().fit(np.array(true_entropy[:]).reshape(-1, 1), np.array(ratio_list[:]))
+    reg = LinearRegression(fit_intercept=True).fit(np.array(true_entropy[:]).reshape(-1, 1), np.array(ratio_list[:]))
     print("y = ax + b model")
     print("a = ", reg.coef_)
     print("b = ", reg.intercept_)
@@ -247,8 +205,7 @@ def regression_model_ternary(size, number_of_p=30, verbose=False, plot=True):
     if plot:
         plt.scatter(true_entropy, ratio_list, marker='.', label = "LZW compressor")
         plt.plot(true_entropy, reg.predict(np.array(true_entropy).reshape(-1,1)), label="regression", color="orange")
-
-        plt.title("Compression ratio - entropy regression model \n Ternary multinomial, size={}".format(size))
+        plt.title("Compression ratio - entropy regression model \n Multinomial with {} states, size={}".format(n, size))
         plt.xlabel("entropy")
         plt.ylabel("compression ratio")
         plt.legend()
@@ -256,18 +213,26 @@ def regression_model_ternary(size, number_of_p=30, verbose=False, plot=True):
 
     return reg, ratio_list, true_entropy
 
-def get_entropy_ternary(size, compression_ratio, name="a random process", plot=True):
+def get_entropy(n, size, compression_ratio, name="a Markov process", plot=True):
+    # n = number of states
+    # size = length of a sequence
+    # compression ratio = comp.ratio of the sequence of interest
+
     # mapping compression ratio to entropy
-    reg, ratio_list, true_entropy = regression_model_ternary(size, number_of_p=30, verbose=False, plot=plot)
-    reg_inv = LinearRegression().fit(np.array(ratio_list[:]).reshape(-1, 1), np.array(true_entropy[:]))
+    reg, ratio_list, true_entropy = regression_model(n, size, number_of_p=100, verbose=False, plot=plot)
+    reg_inv = LinearRegression(fit_intercept=True).fit(np.array(ratio_list[:]).reshape(-1, 1), np.array(true_entropy[:]))
     ent = reg_inv.predict(np.array(compression_ratio).reshape(-1, 1))[0]
 
     if plot:
+        print("plot")
+        print("estimated entropy = ", ent)
+        print("compression ratio = ", compression_ratio)
+        print("reg.predict(est)  = ", reg.predict([[ent]]))
         plt.scatter(true_entropy, ratio_list, marker='.')
-        plt.plot(true_entropy, reg.predict(np.array(true_entropy).reshape(-1,1)), label="regression", color="orange")
+        plt.plot(reg_inv.predict(np.array(ratio_list).reshape(-1,1)), ratio_list, label="regression", color="orange")
         plt.axvline(ent, color="grey", alpha=0.5)
         plt.axhline(compression_ratio, color="grey", alpha=0.5)
-        plt.scatter(ent, compression_ratio, color="red")
+        plt.scatter(ent, compression_ratio, color="red", label="Estimated entropy={}".format(ent.round(3)))
 
         plt.title("Estimated entropy of {} with Size {}".format(name, size))
         plt.xlabel("entropy")
@@ -278,3 +243,23 @@ def get_entropy_ternary(size, compression_ratio, name="a random process", plot=T
 
 
 
+# Fano's ternary (alphabet size = 3)
+def g(p):
+    return entropy([p,1-p]) + p
+
+def dg(p):
+    return -log(p/(1-p),2) + 1
+
+def g_inverse(H, a=0.001):
+    # from entropy value, get p s.t. 0 < p < 0.5
+    # a = accuracy
+    p_hat = 0.33
+    err = np.abs(g(p_hat) - H)
+    while(err > a):
+        err = np.abs(g(p_hat) - H)
+        p_hat = p_hat - 0.01* (g(p_hat) - H) * dg(p_hat)
+        if (p_hat < 0):
+            p_hat = 0
+        if (p_hat > 2/3):
+            p_hat = 2/3
+    return p_hat

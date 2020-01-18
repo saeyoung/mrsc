@@ -17,81 +17,9 @@ from sklearn.linear_model import LinearRegression
 from numpy.linalg import eig
 
 from utils import *
+from ternary import *
 
-def get_P(n=2):
-    P = np.zeros((n,n))
-    for i in range(n):
-        p=[]
-        for j in range(n):
-            p.append(np.random.uniform(0,1,1)[0])
-        
-        p = p/np.sum(p)
-        P[i,:] = p
-    return P
-
-def get_next(this_obs, P):
-    p = P[this_obs,:].flatten()
-    next_obs = multinomial(1,p)
-    return next_obs
-
-def markov(len, P, initial = 0):
-    this_obs = initial
-    observations = [this_obs]
-    for i in range(len):
-        this_obs = get_next(this_obs, P)
-        observations.append(this_obs[0])
-    return observations
-
-def entropy_rate(P):
-    # P = transition matrix (n by n)
-    # mu = asymptotic distribution (1 by n)
-    n = P.shape[0]
-
-    evals, evecs = eig(P.T)
-    loc = np.where(np.abs(evals - 1.) < 0.0001)[0]
-    stationary = evecs[:,loc].T
-    mu = stationary / np.sum(stationary)
-    mu = mu.real
-
-    # print("evals")
-    # print(evals)
-    # print("evecs")
-    # print(evecs)
-    # print("stationary")
-    # print(stationary)
-    # print("mu")
-    # print(mu)
-
-    ent = 0
-    for i in range(n):
-        for j in range(n):
-            ent = ent - mu[:,i] * P[i,j] * log(P[i,j],2)
-    return ent[0]
-
-# def g(p):
-#     return entropy([p,1-p]) + p
-
-# def dg(p):
-#     return -log(p/(1-p),2) + 1
-
-# def g_inverse(H, a=0.001):
-#     # from entropy value, get p s.t. 0 < p < 0.5
-#     # a = accuracy
-#     p_hat = 0.33
-#     err = np.abs(g(p_hat) - H)
-#     while(err > a):
-#         err = np.abs(g(p_hat) - H)
-#         p_hat = p_hat - 0.01* (g(p_hat) - H) * dg(p_hat)
-#         if (p_hat < 0):
-#             p_hat = 0
-#         if (p_hat > 2/3):
-#             p_hat = 2/3
-    
-#     return p_hat
-
-def test(size, name, plot, verbose):
-    P = get_P(n=3)
-    
+def test(P, size, name, plot, verbose):
     # sample binary string
     print("size: ", size)
     print("P   : ")
@@ -105,14 +33,21 @@ def test(size, name, plot, verbose):
     compression_ratio = len(compressed)/len(uncompressed)
 
     # entropy
-    estimated_ent = get_entropy_ternary(size, compression_ratio, name, plot=True)
+    estimated_ent = get_entropy_ternary(size, compression_ratio, name, plot)
     theoretical_ent = entropy_rate(P)
-    empirical_ent = entropy(p_tilda)
+    # empirical_ent = entropy(p_tilda)
+    empirical_ent = 0
 
-    print("Compression ratio  : ", compression_ratio)
-    print("Estimated entropy  : ", estimated_ent)
-    print("Theoretical entropy: ", theoretical_ent)
-    print("Empirical entropy  : ", empirical_ent)
+    # lower bound
+    # lb = g_inverse(estimated_ent, a=0.005)
+
+    if verbose:
+        print("p_tilda            : ", np.round(p_tilda,3))
+        print("Compression ratio  : ", compression_ratio)
+        print("Estimated entropy  : ", estimated_ent)
+        print("Theoretical entropy: ", theoretical_ent)
+        # print("Empirical entropy  : ", empirical_ent)
+        # print("P(e) lower bound   : ", lb)
 
     return compression_ratio, estimated_ent, theoretical_ent, empirical_ent
 
@@ -124,32 +59,47 @@ def test(size, name, plot, verbose):
 
 
 def main():
-#### edit here ####
-    power = 10
+    #### edit here ####
+    powers = [6,7,8,9,10,11]
+    power = 9
     size = 2 ** power
     name = "a ternary Markov process"
-    plot = True
+    plot = False
     verbose = True
     ###################
     print("*******************************************************")
     print("*******************************************************")
     print("********** Running the Testing Scripts. ***************")
 
-    theo_ent = []
-    est_ent = []
-    for num in range(2):
-        compression_ratio, estimated_ent, theoretical_ent, empirical_ent = test(size, name, plot, verbose)
-        theo_ent.append(theoretical_ent)
-        est_ent.append(estimated_ent)
+    data = np.zeros([1,len(powers)])
+    for num in range(50):
+        theo_ent = []
+        est_ent = []
+        P = get_P(n=3)
 
-    error = np.abs(np.array(theo_ent) - np.array(est_ent))
-    print(np.mean(error))
-    plt.xlabel("Absolute discrepancy between theoretical and estimated entropy")
-    plt.title("Error distribution, string length={}".format(size))
-    plt.hist(error)
-    plt.axvline(np.mean(error), color="red", label="mean={}".format(np.mean(error).round(3)))
-    plt.legend()
+        for power in powers:
+            size = 2 ** power
+            compression_ratio, estimated_ent, theoretical_ent, empirical_ent = test(P, size, name, plot, verbose)
+            theo_ent.append(theoretical_ent)
+            est_ent.append(estimated_ent)
+        
+        error = np.abs(np.array(theo_ent) - np.array(est_ent))
+        data = np.vstack((data, error))
+    data = data[1:,:]
+    # print(data)
+    # print(np.log2(data))
+    plt.title("Absolute discrepancy between theoretical and estimated entropy")
+    plt.xlabel("log length (base=2)")
+    plt.ylabel("log absolute error")
+    plt.boxplot(np.log2(data))
+    plt.xticks(np.arange(1,len(powers)+1),powers)
+    # plt.axhline(np.mean(error), color="red", label="mean={}".format(np.mean(error).round(3)))
+    # plt.legend()
+    # plt.savefig("result/ternary_multinomial_{}.png".format(size))
+    plt.savefig("result/ternary_markov_boxplot.png")
     plt.show()
+    plt.clf()
+
 
     print("********** Testing Scripts Done. **********************")
     print("*******************************************************")
