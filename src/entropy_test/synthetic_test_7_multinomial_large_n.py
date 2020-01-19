@@ -109,8 +109,8 @@ def experiment_1():
 
 def experiment_2():
     #### edit here ####
-    powers = [9,10,11,12]
-    # powers = [6,8]
+    # powers = [9,10,11,12]
+    powers = [5,6,7,8]
     samples = 50
     plot = False
     verbose = True
@@ -144,7 +144,7 @@ def experiment_2():
         plt.ylabel("absolute error")
         plt.boxplot(data)
         plt.xticks(np.arange(1,len(powers)+1),powers)
-        plt.savefig("result/boxplot/{}_states_multinomial_boxplot_semilog_{}_samples.png".format(n, samples))
+        plt.savefig("result/boxplot/{}_states_multinomial_boxplot_semilog_{}_samples_short.png".format(n, samples))
         # plt.show()
         plt.clf()
 
@@ -155,7 +155,7 @@ def experiment_2():
         plt.plot(np.arange(1,len(powers)+1),reg.predict(X), color="red", label="r2 score={}".format(reg.score(X,y).round(3)))
         plt.xticks(np.arange(1,len(powers)+1),powers)
         plt.legend()
-        plt.savefig("result/boxplot/{}_states_multinomial_boxplot_loglog_{}_samples.png".format(n, samples))
+        plt.savefig("result/boxplot/{}_states_multinomial_boxplot_loglog_{}_samples_short.png".format(n, samples))
         # plt.show()
         plt.clf()
 
