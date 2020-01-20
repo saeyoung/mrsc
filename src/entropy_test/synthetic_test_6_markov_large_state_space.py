@@ -1,6 +1,6 @@
 #############################################################
 #
-# Test 5. regression model for a fixed input string size N, Markov (Ternary)
+# Test 6. Markov Process Test
 #
 #############################################################
 import sys, os
@@ -106,12 +106,11 @@ def experiment_1():
         # plt.show()
         plt.clf()
 
-def experiment_2():
+def experiment_2(powers):
     #### edit here ####
-    powers = [5,6,7,8]
-    # powers = [9,10,11,12]    
-    # powers = [6,8]
-    samples = 50
+    # powers = [9,10,11,12]
+    # powers = [7,8,9,10]
+    samples = 10
     plot = False
     verbose = True
     ###################
@@ -130,41 +129,54 @@ def experiment_2():
                 theo_ent.append(theoretical_ent)
                 est_ent.append(estimated_ent)
 
-            error = np.abs(np.array(theo_ent) - np.array(est_ent))
+            error = np.array(theo_ent) - np.array(est_ent)
             data = np.vstack((data, error))
         data = data[1:,:]
+        data_abs = np.abs(data)
+
+        # histogram
+        for k in range(len(powers)):
+            plt.title("Theoretical entropy - estimated entropy \n {}, length=2^{}".format(name,powers[k]))
+            plt.hist(data[:,k])
+            plt.savefig("result/hist/markov/{}_states_markov_err_distribution_{}_samples_{}.png".format(n, samples, powers[k]))
+            plt.show()
+            plt.clf()
 
         # regression line
-        y = np.median(np.log2(data),axis=0).reshape(len(powers),1)
+        y = np.median(np.log2(data_abs),axis=0).reshape(len(powers),1)
         X = np.arange(len(powers)).reshape(-1, 1)
         reg = LinearRegression().fit(X, y)
 
         plt.title("Absolute discrepancy between theoretical and estimated entropy \n {}".format(name))
         plt.xlabel("log length (base=2)")
         plt.ylabel("absolute error")
-        plt.boxplot(data)
+        plt.boxplot(data_abs)
         plt.xticks(np.arange(1,len(powers)+1),powers)
-        plt.savefig("result/boxplot/{}_states_markov_boxplot_semilog_{}_samples_short.png".format(n, samples))
-        # plt.show()
+        plt.savefig("result/boxplot/markov/{}_states_markov_boxplot_semilog_{}_samples_{}.png".format(n, samples, powers[0]))
+        plt.show()
         plt.clf()
 
         plt.title("Absolute discrepancy between theoretical and estimated entropy \n {}".format(name))
         plt.xlabel("log length (base=2)")
         plt.ylabel("log absolute error")
-        plt.boxplot(np.log2(data))
-        plt.plot(np.arange(1,len(powers)+1),reg.predict(X), color="red", label="r2 score={}".format(reg.score(X,y).round(3)))
+        plt.boxplot(np.log2(data_abs))
         plt.xticks(np.arange(1,len(powers)+1),powers)
+        plt.savefig("result/boxplot/markov/{}_states_markov_boxplot_loglog_{}_samples_{}.png".format(n, samples, powers[0]))
+        plt.plot(np.arange(1,len(powers)+1),reg.predict(X), color="red", label="r2 score={}".format(reg.score(X,y).round(3)))
         plt.legend()
-        plt.savefig("result/boxplot/{}_states_markov_boxplot_loglog_{}_samples_short.png".format(n, samples))
-        # plt.show()
+        plt.savefig("result/boxplot/markov/{}_states_markov_boxplot_loglog_{}_samples_regression_{}.png".format(n, samples, powers[0]))
+        plt.show()
         plt.clf()
 
 def main():
     print("*******************************************************")
     print("*******************************************************")
     print("********** Running the Testing Scripts. ***************")
-
-    experiment_2()
+    
+    powers_short = [7,8,9,10]
+    powers_long = [11,12,13,14]
+    experiment_2(powers_short)
+    experiment_2(powers_long)
 
     print("********** Testing Scripts Done. **********************")
     print("*******************************************************")
