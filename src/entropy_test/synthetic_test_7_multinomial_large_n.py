@@ -140,7 +140,7 @@ def experiment_2(powers):
             plt.title("Theoretical entropy - estimated entropy \n {}, length=2^{}".format(name,powers[k]))
             plt.hist(data[:,k])
             plt.savefig("result/hist/markov/{}_states_markov_err_distribution_{}_samples_{}.png".format(n, samples, powers[k]))
-            plt.show()
+            # plt.show()
             plt.clf()
 
         # regression line
