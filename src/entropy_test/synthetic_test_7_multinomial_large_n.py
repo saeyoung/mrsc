@@ -139,7 +139,7 @@ def experiment_2(powers):
         for k in range(len(powers)):
             plt.title("Theoretical entropy - estimated entropy \n {}, length=2^{}".format(name,powers[k]))
             plt.hist(data[:,k])
-            plt.savefig("result/hist/markov/{}_states_markov_err_distribution_{}_samples_{}.png".format(n, samples, powers[k]))
+            plt.savefig("result/hist/multinomial/{}_states_multinomial_err_distribution_{}_samples_{}.png".format(n, samples, powers[k]))
             # plt.show()
             plt.clf()
 
