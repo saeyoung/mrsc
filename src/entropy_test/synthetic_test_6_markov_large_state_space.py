@@ -139,7 +139,7 @@ def experiment_2(powers):
             plt.title("Theoretical entropy - estimated entropy \n {}, length=2^{}".format(name,powers[k]))
             plt.hist(data[:,k])
             plt.savefig("result/hist/markov/{}_states_markov_err_distribution_{}_samples_{}.png".format(n, samples, powers[k]))
-            plt.show()
+            # plt.show()
             plt.clf()
 
         # regression line
@@ -153,7 +153,7 @@ def experiment_2(powers):
         plt.boxplot(data_abs)
         plt.xticks(np.arange(1,len(powers)+1),powers)
         plt.savefig("result/boxplot/markov/{}_states_markov_boxplot_semilog_{}_samples_{}.png".format(n, samples, powers[0]))
-        plt.show()
+        # plt.show()
         plt.clf()
 
         plt.title("Absolute discrepancy between theoretical and estimated entropy \n {}".format(name))
@@ -165,7 +165,7 @@ def experiment_2(powers):
         plt.plot(np.arange(1,len(powers)+1),reg.predict(X), color="red", label="r2 score={}".format(reg.score(X,y).round(3)))
         plt.legend()
         plt.savefig("result/boxplot/markov/{}_states_markov_boxplot_loglog_{}_samples_regression_{}.png".format(n, samples, powers[0]))
-        plt.show()
+        # plt.show()
         plt.clf()
 
 def main():
