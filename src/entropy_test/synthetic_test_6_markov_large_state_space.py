@@ -110,7 +110,7 @@ def experiment_2(powers):
     #### edit here ####
     # powers = [9,10,11,12]
     # powers = [7,8,9,10]
-    samples = 10
+    samples = 50
     plot = False
     verbose = True
     ###################
